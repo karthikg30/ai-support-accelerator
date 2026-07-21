@@ -1,0 +1,47 @@
+<nav class="sidebar">
+    <div class="sidebar-brand">
+        <i class="bi bi-headset brand-icon"></i>
+        <div>
+            <div class="brand-title">Support Accelerator AI</div>
+            <div class="brand-subtitle">Tier-1 Support Assistant</div>
+        </div>
+    </div>
+
+    <ul class="sidebar-menu">
+        <li>
+            <a href="{% url 'create_case' %}"
+               class="sidebar-link {% if request.resolver_match.url_name == 'create_case' %}active{% endif %}">
+                <i class="bi bi-plus-circle"></i> <span>Create Case</span>
+            </a>
+        </li>
+        <li>
+            <a href="#" class="sidebar-link">
+                <i class="bi bi-folder2-open"></i> <span>My Cases</span>
+            </a>
+        </li>
+        <li>
+            <a href="#" class="sidebar-link">
+                <i class="bi bi-journal-text"></i> <span>Knowledge Base</span>
+            </a>
+        </li>
+        <li>
+            <a href="#" class="sidebar-link">
+                <i class="bi bi-robot"></i> <span>AI Assistant</span>
+            </a>
+        </li>
+        <li>
+            <a href="#" class="sidebar-link">
+                <i class="bi bi-gear"></i> <span>Settings</span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="sidebar-footer">
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="sidebar-link logout-btn">
+                <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+            </button>
+        </form>
+    </div>
+</nav>
