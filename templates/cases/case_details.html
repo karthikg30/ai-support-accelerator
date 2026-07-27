@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Case #{{ case.pk }} · Support Accelerator AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Case #{{ case.pk }}</h4>
+    <a href="{% url 'my_cases' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to My Cases
+    </a>
+</div>
+
+<div class="card p-4">
+
+    {% if case.sync_status == 'Synced' %}
+    <div class="alert alert-success d-flex justify-content-between align-items-center">
+        <span>
+            <i class="bi bi-check-circle me-1"></i>
+            Synced to Salesforce as ticket <strong>{{ case.salesforce_case_number }}</strong>
+        </span>
+        <a href="{{ case.salesforce_case_url }}" target="_blank" rel="noopener noreferrer"
+           class="btn btn-sm btn-primary">
+            Open in Salesforce <i class="bi bi-box-arrow-up-right"></i>
+        </a>
+    </div>
+    {% elif case.sync_status == 'Failed' %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Salesforce sync failed: {{ case.sync_error }}
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="detail-label">Account Name</div>
+            <div class="detail-value">{{ case.account_name }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Contact Name</div>
+            <div class="detail-value">{{ case.contact_name }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Priority</div>
+            <div class="detail-value">
+                <span class="badge priority-{{ case.priority|lower }}">{{ case.priority }}</span>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Reply Via</div>
+            <div class="detail-value">{{ case.reply_via }}</div>
+        </div>
+        <div class="col-12">
+            <div class="detail-label">Subject</div>
+            <div class="detail-value">{{ case.subject }}</div>
+        </div>
+        <div class="col-12">
+            <div class="detail-label">Description</div>
+            <div class="detail-value">{{ case.description|linebreaks }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Product Request Type</div>
+            <div class="detail-value">{{ case.product_request_type|default:"—" }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Product Category</div>
+            <div class="detail-value">{{ case.product_category|default:"—" }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Includes PHI</div>
+            <div class="detail-value">{{ case.includes_phi|yesno:"Yes,No" }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Status</div>
+            <div class="detail-value">{{ case.status }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Created</div>
+            <div class="detail-value">{{ case.created_at|date:"d M Y, H:i" }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Created By</div>
+            <div class="detail-value">{{ case.created_by.username }}</div>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="detail-label mb-2">Attachments</div>
+    {% if case.attachments.all %}
+        <ul class="list-unstyled mb-0">
+            {% for attachment in case.attachments.all %}
+            <li class="mb-1">
+                <i class="bi bi-paperclip me-1"></i>
+                <a href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer">
+                    {{ attachment.file.name|cut:"case_attachments/" }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="text-muted small">No attachments.</div>
+    {% endif %}
+
+</div>
+{% endblock %}

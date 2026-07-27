@@ -61,11 +61,31 @@ class Case(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Salesforce sync
+    SYNC_STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Synced', 'Synced'),
+        ('Failed', 'Failed'),
+    ]
+
+    salesforce_case_number = models.CharField(max_length=50, blank=True)
+    salesforce_case_url = models.URLField(blank=True)
+    sync_status = models.CharField(
+        max_length=10, choices=SYNC_STATUS_CHOICES, default='Pending'
+    )
+    sync_error = models.TextField(blank=True)
+    synced_at = models.DateTimeField(null=True, blank=True)
+
+
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
         return f"Case #{self.pk} — {self.subject}"
+    
+    @property
+    def is_synced(self):
+        return self.sync_status == 'Synced'
 
 
 class Attachment(models.Model):

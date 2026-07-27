@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}My Cases · Support Accelerator AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">My Cases</h4>
+    <a href="{% url 'create_case' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Create Case
+    </a>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col">
+            <input type="text" name="q" value="{{ query }}" class="form-control"
+                   placeholder="Search by subject, account, or Salesforce ticket number">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+        {% if query %}
+        <div class="col-auto">
+            <a href="{% url 'my_cases' %}" class="btn btn-outline-secondary">Clear</a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<div class="card p-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Case ID</th>
+                    <th>Salesforce Ticket</th>
+                    <th>Account</th>
+                    <th>Subject</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for case in cases %}
+                <tr>
+                    <td>#{{ case.pk }}</td>
+                    <td>
+                        {% if case.sync_status == 'Synced' %}
+                            <a href="{{ case.salesforce_case_url }}" target="_blank"
+                               rel="noopener noreferrer">
+                                {{ case.salesforce_case_number }}
+                                <i class="bi bi-box-arrow-up-right small"></i>
+                            </a>
+                        {% elif case.sync_status == 'Failed' %}
+                            <span class="badge text-bg-danger">Sync failed</span>
+                            <form method="post" action="{% url 'retry_sync' case.pk %}"
+                                  class="d-inline">
+                                {% csrf_token %}
+                                <button class="btn btn-link btn-sm p-0 ms-1" type="submit">
+                                    Retry
+                                </button>
+                            </form>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ case.account_name }}</td>
+                    <td>
+                        <a href="{% url 'case_detail' case.pk %}">{{ case.subject }}</a>
+                    </td>
+                    <td>
+                        <span class="badge priority-{{ case.priority|lower }}">
+                            {{ case.priority }}
+                        </span>
+                    </td>
+                    <td>{{ case.status }}</td>
+                    <td>{{ case.created_at|date:"d M Y, H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'case_detail' case.pk %}"
+                           class="btn btn-sm btn-outline-primary">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        {% if query %}
+                            No cases match your search.
+                        {% else %}
+                            You haven't created any cases yet.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-3">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?q={{ query }}&page={{ page_obj.previous_page_number }}">
+                Previous
+            </a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?q={{ query }}&page={{ page_obj.next_page_number }}">
+                Next
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
