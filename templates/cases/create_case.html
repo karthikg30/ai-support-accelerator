@@ -3,8 +3,171 @@
 {% block title %}Create Case · Support Accelerator AI{% endblock %}
 
 {% block content %}
-<h4 class="mb-3">Create Case</h4>
-<div class="card p-4">
-    <p class="text-muted mb-0">Case form coming in the next step.</p>
+<div class="row g-3">
+
+    <!-- ===== LEFT: Case form (~70%) ===== -->
+    <div class="col-lg-8">
+        <div class="card p-4">
+
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h4 class="mb-1">Create New Case</h4>
+                    <p class="text-muted small mb-0">
+                        Provide details of the issue so we can assist you better.
+                    </p>
+                </div>
+                <span class="small text-danger">* Required fields</span>
+            </div>
+            <hr>
+
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+
+                <div class="row g-4">
+
+                    <!-- Column A: fields 1-5 -->
+                    <div class="col-md-6">
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.account_name.id_for_label }}">
+                                1. Account Name <span class="text-danger">*</span>
+                            </label>
+                            {{ form.account_name }}
+                            {% for e in form.account_name.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.contact_name.id_for_label }}">
+                                2. Contact Name <span class="text-danger">*</span>
+                            </label>
+                            {{ form.contact_name }}
+                            {% for e in form.contact_name.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.priority.id_for_label }}">
+                                3. Priority <span class="text-danger">*</span>
+                            </label>
+                            {{ form.priority }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.reply_via.id_for_label }}">
+                                4. Reply Via <span class="text-danger">*</span>
+                            </label>
+                            {{ form.reply_via }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.subject.id_for_label }}">
+                                5. Subject <span class="text-danger">*</span>
+                            </label>
+                            {{ form.subject }}
+                            {% for e in form.subject.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+
+                    <!-- Column B: fields 6-10 -->
+                    <div class="col-md-6">
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.description.id_for_label }}">
+                                6. Description <span class="text-danger">*</span>
+                            </label>
+                            {{ form.description }}
+                            <div class="form-text text-end">
+                                <span id="charCount">0</span> / 4000 characters
+                            </div>
+                            {% for e in form.description.errors %}
+                                <div class="text-danger small">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.product_request_type.id_for_label }}">
+                                7. Product Request Type <span class="text-muted small">(auto-assigned)</span>
+                            </label>
+                            {{ form.product_request_type }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.product_category.id_for_label }}">
+                                8. Product Category <span class="text-muted small">(auto-assigned)</span>
+                            </label>
+                            {{ form.product_category }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-block">
+                                9. Includes PHI Information? <span class="text-danger">*</span>
+                            </label>
+                            <div class="phi-radios">
+                                {% for radio in form.includes_phi %}
+                                    <div class="form-check form-check-inline">
+                                        {{ radio.tag }}
+                                        <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                            {{ radio.choice_label }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-lock"></i>
+                                Do not include PHI in attachments unless required and authorized.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.attachments.id_for_label }}">
+                                10. Attachments
+                            </label>
+                            <input type="file" name="attachments" multiple
+                                   id="{{ form.attachments.id_for_label }}"
+                                   class="form-control">
+                            <div class="form-text">
+                                Accepted: .pdf .doc .docx .xls .xlsx .png .jpg .txt — max 25 MB each.
+                            </div>
+                            {% for e in form.attachments.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="text-end mt-3">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-send me-1"></i> Submit Case
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ===== RIGHT: AI panel (~30%) ===== -->
+    <div class="col-lg-4">
+        {% include 'chatbot/ai_panel.html' %}
+    </div>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const descField = document.getElementById('{{ form.description.id_for_label }}');
+    const counter = document.getElementById('charCount');
+    if (descField && counter) {
+        const update = () => counter.textContent = descField.value.length;
+        descField.addEventListener('input', update);
+        update();
+    }
+</script>
 {% endblock %}
