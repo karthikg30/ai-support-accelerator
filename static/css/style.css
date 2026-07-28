@@ -1,9 +1,25 @@
-/* ===== Support Accelerator AI Theme ===== */
+/* ============================================================
+   Support Accelerator AI — Optum Theme
+   ============================================================ */
 
 :root {
-    --primary: #0057B8;
-    --secondary: #0B5ED7;
-    --bg: #F5F7FA;
+    /* Brand palette — verify these against the official Optum guide */
+    --optum-orange: #F47F28;
+    --optum-orange-dark: #D14E13;
+    --optum-blue: #3B22CC;
+    --optum-blue-deep: #241596;
+    --off-white: #EBF7FD;
+    --apple: #D12F44;
+    --lagoon: #00BC79;
+
+    /* Semantic roles */
+    --primary: var(--optum-orange);
+    --secondary: var(--optum-blue);
+    --bg: var(--off-white);
+    --sidebar-bg: var(--optum-orange);
+    --text: #1f2733;
+    --text-muted: #6b7787;
+    --border: #dce6ee;
     --card-radius: 12px;
     --sidebar-width: 250px;
 }
@@ -11,39 +27,20 @@
 body {
     background-color: var(--bg);
     font-family: "Segoe UI", system-ui, sans-serif;
+    color: var(--text);
 }
 
-/* ===== Layout ===== */
-
-/* ===== Login Page ===== */
-
-.login-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #eef4fc 0%, #d9e7f7 50%, #c6dbf2 100%);
+a {
+    color: var(--optum-blue);
 }
 
-.login-card {
-    width: 100%;
-    max-width: 400px;
+a:hover {
+    color: var(--optum-blue-deep);
 }
 
-.login-logo {
-    font-size: 3rem;
-    color: var(--primary);
-}
-
-/* ===== Logout button (styled as menu link) ===== */
-
-.logout-btn {
-    background: none;
-    border: none;
-    width: 100%;
-    text-align: left;
-    cursor: pointer;
-}
+/* ============================================================
+   Layout
+   ============================================================ */
 
 .app-layout {
     display: flex;
@@ -56,7 +53,9 @@ body {
     padding: 24px;
 }
 
-/* ===== Sidebar ===== */
+/* ============================================================
+   Sidebar
+   ============================================================ */
 
 .sidebar {
     position: fixed;
@@ -64,8 +63,7 @@ body {
     left: 0;
     width: var(--sidebar-width);
     height: 100vh;
-    background: #ffffff;
-    border-right: 1px solid #e3e8ef;
+    background: var(--sidebar-bg);
     display: flex;
     flex-direction: column;
     padding: 16px 12px;
@@ -76,25 +74,25 @@ body {
     align-items: center;
     gap: 10px;
     padding: 8px 10px 20px;
-    border-bottom: 1px solid #eef1f5;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
     margin-bottom: 14px;
 }
 
 .brand-icon {
     font-size: 1.9rem;
-    color: var(--primary);
+    color: #ffffff;
 }
 
 .brand-title {
     font-weight: 700;
     font-size: 0.95rem;
-    color: var(--primary);
+    color: #ffffff;
     line-height: 1.2;
 }
 
 .brand-subtitle {
     font-size: 0.7rem;
-    color: #7a8699;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .sidebar-menu {
@@ -111,7 +109,7 @@ body {
     padding: 10px 12px;
     margin-bottom: 4px;
     border-radius: 8px;
-    color: #3d4a5c;
+    color: #ffffff;
     text-decoration: none;
     font-size: 0.92rem;
     transition: background 0.15s, color 0.15s;
@@ -122,57 +120,114 @@ body {
 }
 
 .sidebar-link:hover {
-    background: #eef4fc;
-    color: var(--primary);
-}
-
-.sidebar-link.active {
-    background: var(--primary);
+    background: rgba(255, 255, 255, 0.18);
     color: #ffffff;
 }
 
+.sidebar-link.active {
+    background: var(--off-white);
+    color: var(--optum-orange-dark);
+    font-weight: 600;
+}
+
 .sidebar-footer {
-    border-top: 1px solid #eef1f5;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
     padding-top: 10px;
 }
 
-/* ===== Cards ===== */
+.logout-btn {
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* ============================================================
+   Cards, buttons, forms
+   ============================================================ */
 
 .card {
     border: none;
     border-radius: var(--card-radius);
+    background: #ffffff;
     box-shadow: 0 1px 3px rgba(16, 42, 84, 0.08);
 }
 
-/* ===== Buttons ===== */
-
 .btn-primary {
-    background-color: var(--primary);
-    border-color: var(--primary);
+    background-color: var(--optum-orange);
+    border-color: var(--optum-orange);
+    font-weight: 600;
 }
 
-.btn-primary:hover {
-    background-color: var(--secondary);
-    border-color: var(--secondary);
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--optum-orange-dark);
+    border-color: var(--optum-orange-dark);
 }
 
-/* ===== Responsive ===== */
-
-@media (max-width: 768px) {
-    .sidebar {
-        width: 64px;
-    }
-    .sidebar .brand-title,
-    .sidebar .brand-subtitle,
-    .sidebar-link span {
-        display: none;
-    }
-    .main-content {
-        margin-left: 64px;
-    }
+.btn-outline-primary {
+    color: var(--optum-blue);
+    border-color: var(--optum-blue);
 }
 
-/* ===== AI Assistant Panel ===== */
+.btn-outline-primary:hover {
+    background-color: var(--optum-blue);
+    border-color: var(--optum-blue);
+    color: #ffffff;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--optum-orange);
+    box-shadow: 0 0 0 0.2rem rgba(241, 98, 33, 0.15);
+}
+
+.form-check-input:checked {
+    background-color: var(--optum-orange);
+    border-color: var(--optum-orange);
+}
+
+/* ============================================================
+   Login page
+   ============================================================ */
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Gradient-only background (no image asset required) */
+    background:
+        radial-gradient(circle at 15% 20%, rgba(241, 98, 33, 0.10) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(59, 34, 204, 0.08) 0%, transparent 40%),
+        var(--off-white);
+
+    /* --- To use a photo instead: put the file in static/images/,
+           comment out the block above, and uncomment this one ---
+    background:
+        linear-gradient(135deg, rgba(235, 247, 253, 0.90) 0%, rgba(235, 247, 253, 0.80) 100%),
+        url("../images/login-bg.jpg") center / cover no-repeat;
+    */
+}
+
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    border-top: 4px solid var(--optum-orange);
+    box-shadow: 0 8px 24px rgba(36, 21, 150, 0.10);
+}
+
+.login-logo {
+    font-size: 3rem;
+    color: var(--optum-orange);
+}
+
+/* ============================================================
+   AI Assistant panel
+   ============================================================ */
 
 .ai-panel {
     position: sticky;
@@ -188,9 +243,13 @@ body {
     align-items: center;
     gap: 8px;
     padding: 14px 16px;
-    border-bottom: 1px solid #eef1f5;
+    border-bottom: 1px solid var(--border);
     font-weight: 600;
-    color: var(--primary);
+    color: var(--optum-blue);
+}
+
+.ai-panel-header i {
+    color: var(--optum-orange);
 }
 
 .ai-panel-body {
@@ -200,7 +259,8 @@ body {
 }
 
 .ai-welcome {
-    background: #eef4fc;
+    background: #f3f8fd;
+    border-left: 3px solid var(--optum-orange);
     border-radius: 10px;
     padding: 12px 14px;
     font-size: 0.9rem;
@@ -220,23 +280,28 @@ body {
     gap: 8px;
     text-align: left;
     background: #ffffff;
-    border: 1px solid #dbe3ee;
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 0.85rem;
-    color: var(--primary);
+    color: var(--optum-blue);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, border-color 0.15s;
 }
 
 .ai-suggestion:hover {
-    background: #f2f7fd;
+    background: #fff6f1;
+    border-color: var(--optum-orange);
+}
+
+.ai-suggestion i {
+    color: var(--optum-orange);
 }
 
 .ai-section-title {
     font-weight: 600;
     font-size: 0.85rem;
-    color: #3d4a5c;
+    color: var(--text);
     margin-bottom: 8px;
 }
 
@@ -252,8 +317,12 @@ body {
     gap: 8px;
     padding: 7px 0;
     font-size: 0.85rem;
-    color: var(--primary);
+    color: var(--optum-blue);
     cursor: pointer;
+}
+
+.ai-topics li i {
+    color: var(--optum-orange);
 }
 
 .phi-note {
@@ -266,9 +335,13 @@ body {
     color: #4a5768;
 }
 
+.phi-note i {
+    color: var(--lagoon);
+}
+
 .ai-panel-footer {
     padding: 12px 16px 14px;
-    border-top: 1px solid #eef1f5;
+    border-top: 1px solid var(--border);
 }
 
 .ai-disclaimer {
@@ -278,12 +351,14 @@ body {
     margin-top: 8px;
 }
 
-/* ===== Case list & detail ===== */
+/* ============================================================
+   Case list & detail
+   ============================================================ */
 
-.priority-low      { background: #e7f1ff; color: #0057B8; }
-.priority-medium   { background: #fff4e0; color: #a86500; }
-.priority-high     { background: #ffe9e3; color: #b83c1a; }
-.priority-critical { background: #ffe0e0; color: #b31212; }
+.priority-low      { background: #e8f0ff; color: var(--optum-blue); }
+.priority-medium   { background: #fff1e6; color: var(--optum-orange-dark); }
+.priority-high     { background: #ffe4d6; color: var(--optum-orange-dark); }
+.priority-critical { background: #fde3e6; color: var(--apple); }
 
 .detail-label {
     font-size: 0.75rem;
@@ -302,6 +377,50 @@ body {
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: #6b7787;
-    border-bottom: 1px solid #e3e8ef;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.table tbody tr:hover {
+    background: #f7fbfe;
+}
+
+/* ============================================================
+   Alerts
+   ============================================================ */
+
+.alert-success {
+    background: #e6f9f1;
+    border-color: #b8ecd8;
+    color: #06694a;
+}
+
+.alert-danger {
+    background: #fdeaed;
+    border-color: #f6c8ce;
+    color: #93202f;
+}
+
+.alert-warning {
+    background: #fff3e8;
+    border-color: #ffd9be;
+    color: #8a4110;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 64px;
+    }
+    .sidebar .brand-title,
+    .sidebar .brand-subtitle,
+    .sidebar-link span {
+        display: none;
+    }
+    .main-content {
+        margin-left: 64px;
+    }
 }
