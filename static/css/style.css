@@ -3,11 +3,13 @@
    ============================================================ */
 
 :root {
-    /* Brand palette — verify these against the official Optum guide */
-    --optum-orange: #F47F28;
+    /* Brand palette */
+    --optum-orange: #F16221;
+    --optum-orange-light: #F47F28;
     --optum-orange-dark: #D14E13;
     --optum-blue: #3B22CC;
     --optum-blue-deep: #241596;
+    --optum-navy: #002677;
     --off-white: #EBF7FD;
     --apple: #D12F44;
     --lagoon: #00BC79;
@@ -16,7 +18,7 @@
     --primary: var(--optum-orange);
     --secondary: var(--optum-blue);
     --bg: var(--off-white);
-    --sidebar-bg: var(--optum-orange);
+    --sidebar-bg: var(--optum-orange-light);
     --text: #1f2733;
     --text-muted: #6b7787;
     --border: #dce6ee;
@@ -141,6 +143,7 @@ a:hover {
     width: 100%;
     text-align: left;
     cursor: pointer;
+    color: #ffffff;
 }
 
 /* ============================================================
@@ -190,39 +193,191 @@ a:hover {
 }
 
 /* ============================================================
-   Login page
+   Login page — split panel
    ============================================================ */
 
 .login-page {
     min-height: 100vh;
+    margin: 0;
+    background: #ffffff;
+}
+
+.login-split {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ---- Left: brand panel ---- */
+
+.login-brand-panel {
+    flex: 0 0 52%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 56px 60px;
+    color: #ffffff;
+    overflow: hidden;
+
+    background:
+        radial-gradient(circle at 78% 12%, rgba(255, 255, 255, 0.14) 0%, transparent 42%),
+        radial-gradient(circle at 15% 85%, rgba(59, 34, 204, 0.45) 0%, transparent 50%),
+        linear-gradient(135deg, #002677 0%, #1B3A8C 55%, #3B22CC 100%);
+}
+
+.login-brand-panel::before,
+.login-brand-panel::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+}
+
+.login-brand-panel::before {
+    width: 520px;
+    height: 520px;
+    top: -160px;
+    right: -180px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.login-brand-panel::after {
+    width: 340px;
+    height: 340px;
+    bottom: -120px;
+    left: -110px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.login-brand-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 460px;
+}
+
+.login-brand-mark {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    background: var(--optum-orange);
     display: flex;
     align-items: center;
     justify-content: center;
-
-    /* Gradient-only background (no image asset required) */
-    background:
-        radial-gradient(circle at 15% 20%, rgba(241, 98, 33, 0.10) 0%, transparent 40%),
-        radial-gradient(circle at 85% 80%, rgba(59, 34, 204, 0.08) 0%, transparent 40%),
-        var(--off-white);
-
-    /* --- To use a photo instead: put the file in static/images/,
-           comment out the block above, and uncomment this one ---
-    background:
-        linear-gradient(135deg, rgba(235, 247, 253, 0.90) 0%, rgba(235, 247, 253, 0.80) 100%),
-        url("../images/login-bg.jpg") center / cover no-repeat;
-    */
+    font-size: 1.7rem;
+    margin-bottom: 26px;
 }
 
-.login-card {
+.login-brand-title {
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 8px;
+    color: #ffffff;
+}
+
+.login-brand-tagline {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 40px;
+}
+
+.login-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.login-features li {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.login-features i {
+    font-size: 1.1rem;
+    color: var(--optum-orange-light);
+    margin-top: 2px;
+}
+
+.login-features strong {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.login-features span {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.login-brand-footer {
+    position: relative;
+    z-index: 1;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+/* ---- Right: form panel ---- */
+
+.login-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: #ffffff;
+}
+
+.login-form-inner {
     width: 100%;
-    max-width: 400px;
-    border-top: 4px solid var(--optum-orange);
-    box-shadow: 0 8px 24px rgba(36, 21, 150, 0.10);
+    max-width: 360px;
 }
 
-.login-logo {
-    font-size: 3rem;
-    color: var(--optum-orange);
+.login-heading {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.login-subheading {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+}
+
+.login-form-inner .form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.login-form-inner .input-group-text {
+    background: #ffffff;
+    border-right: none;
+    color: var(--text-muted);
+}
+
+.login-form-inner .form-control {
+    border-left: none;
+    padding-left: 0;
+}
+
+.login-form-inner .form-control:focus {
+    box-shadow: none;
+    border-color: #dee2e6;
+}
+
+.login-form-inner .input-group:focus-within {
+    border-radius: 6px;
+    box-shadow: 0 0 0 0.2rem rgba(244, 127, 40, 0.15);
+}
+
+.login-help {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 24px;
 }
 
 /* ============================================================
@@ -245,7 +400,7 @@ a:hover {
     padding: 14px 16px;
     border-bottom: 1px solid var(--border);
     font-weight: 600;
-    color: var(--optum-blue);
+    color: var(--optum-navy);
 }
 
 .ai-panel-header i {
@@ -284,7 +439,7 @@ a:hover {
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 0.85rem;
-    color: var(--optum-blue);
+    color: var(--optum-navy);
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
 }
@@ -317,7 +472,7 @@ a:hover {
     gap: 8px;
     padding: 7px 0;
     font-size: 0.85rem;
-    color: var(--optum-blue);
+    color: var(--optum-navy);
     cursor: pointer;
 }
 
@@ -355,7 +510,7 @@ a:hover {
    Case list & detail
    ============================================================ */
 
-.priority-low      { background: #e8f0ff; color: var(--optum-blue); }
+.priority-low      { background: #e8f0ff; color: var(--optum-navy); }
 .priority-medium   { background: #fff1e6; color: var(--optum-orange-dark); }
 .priority-high     { background: #ffe4d6; color: var(--optum-orange-dark); }
 .priority-critical { background: #fde3e6; color: var(--apple); }
@@ -410,6 +565,12 @@ a:hover {
 /* ============================================================
    Responsive
    ============================================================ */
+
+@media (max-width: 900px) {
+    .login-brand-panel {
+        display: none;
+    }
+}
 
 @media (max-width: 768px) {
     .sidebar {
