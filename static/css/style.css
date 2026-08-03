@@ -592,3 +592,49 @@ a:hover {
         margin-left: 64px;
     }
 }
+
+/* ===== Chat bubbles ===== */
+
+.chat-bubble {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+    line-height: 1.45;
+}
+
+.chat-user {
+    background: var(--optum-navy);
+    color: #ffffff;
+    margin-left: 24px;
+}
+
+.chat-ai {
+    background: #f3f6fa;
+    color: var(--text);
+    margin-right: 12px;
+}
+
+.ai-apply-block {
+    background: #fff6f1;
+    border: 1px solid #ffd9c2;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.ai-apply-summary {
+    font-size: 0.78rem;
+    color: var(--optum-orange-dark);
+    font-weight: 600;
+}
+
+.field-updated {
+    animation: fieldFlash 1.5s ease-out;
+}
+
+@keyframes fieldFlash {
+    0%   { background-color: #ffe8d6; }
+    100% { background-color: transparent; }
+}

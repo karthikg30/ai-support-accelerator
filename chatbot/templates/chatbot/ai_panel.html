@@ -5,39 +5,51 @@
         <span>Support Accelerator AI</span>
     </div>
 
-    <div class="ai-panel-body">
+    <div class="ai-panel-body" id="aiPanelBody">
 
         <div class="ai-welcome">
             Hi! I'm your AI assistant. How can I help you today?
         </div>
 
-        <div class="ai-suggestions">
-            <button type="button" class="ai-suggestion">
+        <div class="ai-suggestions" id="aiSuggestions">
+            <button type="button" class="ai-suggestion" data-prompt="What information do I need before creating a case?">
                 <i class="bi bi-info-circle"></i>
                 What information do I need before creating a case?
             </button>
-            <button type="button" class="ai-suggestion">
+            <button type="button" class="ai-suggestion" data-prompt="How should I classify this issue?">
                 <i class="bi bi-tags"></i>
                 How should I classify this issue?
             </button>
-            <button type="button" class="ai-suggestion">
+            <button type="button" class="ai-suggestion" data-prompt="Search similar issues">
                 <i class="bi bi-search"></i>
                 Search similar issues
             </button>
-            <button type="button" class="ai-suggestion">
+            <button type="button" class="ai-suggestion" data-prompt="Recommended troubleshooting steps">
                 <i class="bi bi-tools"></i>
                 Recommended troubleshooting steps
             </button>
         </div>
 
-        <div class="ai-section-title">Popular topics</div>
-        <ul class="ai-topics">
-            <li><i class="bi bi-file-earmark-text"></i> Creating a Case</li>
-            <li><i class="bi bi-file-earmark-text"></i> Portal Login Issues</li>
-            <li><i class="bi bi-file-earmark-text"></i> Password Reset</li>
-            <li><i class="bi bi-file-earmark-text"></i> Escalation Guidelines</li>
-            <li><i class="bi bi-file-earmark-text"></i> Security Policy</li>
-        </ul>
+        <div id="aiTopicsBlock">
+            <div class="ai-section-title">Popular topics</div>
+            <ul class="ai-topics">
+                <li data-prompt="How do I create a case?">
+                    <i class="bi bi-file-earmark-text"></i> Creating a Case
+                </li>
+                <li data-prompt="Portal login issues">
+                    <i class="bi bi-file-earmark-text"></i> Portal Login Issues
+                </li>
+                <li data-prompt="Password reset">
+                    <i class="bi bi-file-earmark-text"></i> Password Reset
+                </li>
+                <li data-prompt="When should I escalate a case?">
+                    <i class="bi bi-file-earmark-text"></i> Escalation Guidelines
+                </li>
+                <li data-prompt="PHI and security policy">
+                    <i class="bi bi-file-earmark-text"></i> Security Policy
+                </li>
+            </ul>
+        </div>
 
         <div class="phi-note">
             <i class="bi bi-shield-check"></i>
@@ -49,8 +61,8 @@
     <div class="ai-panel-footer">
         <div class="input-group">
             <input type="text" class="form-control" id="aiInput"
-                   placeholder="Type your message..." disabled>
-            <button class="btn btn-primary" type="button" id="aiSend" disabled>
+                   placeholder="Type your message..." maxlength="2000">
+            <button class="btn btn-primary" type="button" id="aiSend">
                 <i class="bi bi-send"></i>
             </button>
         </div>

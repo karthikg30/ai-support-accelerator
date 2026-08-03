@@ -162,6 +162,13 @@
 
 {% block extra_js %}
 <script>
+(function () {
+    const askUrl = "{% url 'chatbot_ask' %}";
+    const panelBody = document.getElementById('aiPanelBody');
+    const input = document.getElementById('aiInput');
+    const sendBtn = document.getElementById('aiSend');
+
+    // ---- Description character counter ----
     const descField = document.getElementById('{{ form.description.id_for_label }}');
     const counter = document.getElementById('charCount');
     if (descField && counter) {
@@ -169,5 +176,133 @@
         descField.addEventListener('input', update);
         update();
     }
+
+    // ---- CSRF token ----
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    // ---- Rendering helpers (textContent only — never innerHTML) ----
+    function addBubble(text, who) {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble chat-' + who;
+        bubble.textContent = text;
+        panelBody.appendChild(bubble);
+        panelBody.scrollTop = panelBody.scrollHeight;
+        return bubble;
+    }
+
+    function addApplyButton(data) {
+        if (!data.suggested_category && !data.suggested_priority
+            && !data.suggested_request_type) {
+            return;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-apply-block';
+
+        const summary = document.createElement('div');
+        summary.className = 'ai-apply-summary';
+        const parts = [];
+        if (data.suggested_category) parts.push('Category: ' + data.suggested_category);
+        if (data.suggested_request_type) parts.push('Request type: ' + data.suggested_request_type);
+        if (data.suggested_priority) parts.push('Priority: ' + data.suggested_priority);
+        summary.textContent = parts.join(' · ');
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-primary mt-2';
+        btn.textContent = 'Apply to form';
+        btn.addEventListener('click', function () {
+            applySuggestions(data);
+            btn.textContent = 'Applied';
+            btn.disabled = true;
+        });
+
+        wrap.appendChild(summary);
+        wrap.appendChild(btn);
+        panelBody.appendChild(wrap);
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+
+    function flash(field) {
+        if (!field) return;
+        field.classList.add('field-updated');
+        setTimeout(() => field.classList.remove('field-updated'), 1500);
+    }
+
+    function applySuggestions(data) {
+        const category = document.getElementById('{{ form.product_category.id_for_label }}');
+        const reqType = document.getElementById('{{ form.product_request_type.id_for_label }}');
+        const priority = document.getElementById('{{ form.priority.id_for_label }}');
+
+        if (data.suggested_category && category) {
+            category.value = data.suggested_category;
+            flash(category);
+        }
+        if (data.suggested_request_type && reqType) {
+            reqType.value = data.suggested_request_type;
+            flash(reqType);
+        }
+        if (data.suggested_priority && priority) {
+            priority.value = data.suggested_priority;
+            flash(priority);
+        }
+    }
+
+    // ---- Send ----
+    let busy = false;
+
+    async function send(message) {
+        if (busy) return;
+        const text = (message || input.value).trim();
+        if (!text) return;
+
+        busy = true;
+        input.value = '';
+        addBubble(text, 'user');
+
+        const thinking = addBubble('Thinking...', 'ai');
+
+        try {
+            const response = await fetch(askUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ message: text, source: 'panel' }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                thinking.textContent = data.error || 'Something went wrong.';
+            } else {
+                thinking.textContent = data.reply;
+                addApplyButton(data);
+            }
+        } catch (err) {
+            thinking.textContent = 'Could not reach the assistant. Please try again.';
+        } finally {
+            busy = false;
+            input.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', () => send());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            send();
+        }
+    });
+
+    // ---- Clickable suggestions and topics ----
+    document.querySelectorAll('[data-prompt]').forEach((el) => {
+        el.addEventListener('click', () => send(el.dataset.prompt));
+    });
+})();
 </script>
 {% endblock %}
