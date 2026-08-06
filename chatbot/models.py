@@ -11,6 +11,7 @@ class ChatHistory(models.Model):
     SOURCE_CHOICES = [
         ('panel', 'Create Case panel'),
         ('page', 'AI Assistant page'),
+        ('rephrase', 'Description rephrase'),
     ]
 
     user = models.ForeignKey(
@@ -33,3 +34,4 @@ class ChatHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.message[:50]}"
+

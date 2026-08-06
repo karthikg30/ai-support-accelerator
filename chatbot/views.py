@@ -6,7 +6,12 @@ from django.views.decorators.http import require_POST
 
 from .models import ChatHistory
 from .services.ai_service import MAX_MESSAGE_LENGTH, get_ai_response
-
+from .services.ai_service import (
+    MAX_MESSAGE_LENGTH,
+    MAX_REPHRASE_LENGTH,
+    get_ai_response,
+    rephrase_text,
+)
 
 @login_required
 @require_POST
@@ -41,6 +46,40 @@ def ask(request):
         suggested_priority=result.suggested_priority,
         suggested_request_type=result.suggested_request_type,
         source=source,
+        engine=result.engine,
+    )
+
+    return JsonResponse(result.to_dict())
+
+@login_required
+@require_POST
+def rephrase(request):
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid request format.'}, status=400)
+
+    text = (payload.get('text') or '').strip()
+
+    if not text:
+        return JsonResponse({'error': 'Nothing to rephrase.'}, status=400)
+
+    if len(text) > MAX_REPHRASE_LENGTH:
+        return JsonResponse(
+            {'error': f'Text is too long (limit {MAX_REPHRASE_LENGTH} characters).'},
+            status=400,
+        )
+
+    result = rephrase_text(text, user=request.user)
+
+    if not result.success:
+        return JsonResponse({'error': result.error}, status=400)
+
+    ChatHistory.objects.create(
+        user=request.user,
+        message=text,
+        response=result.text,
+        source='rephrase',
         engine=result.engine,
     )
 

@@ -638,3 +638,55 @@ a:hover {
     0%   { background-color: #ffe8d6; }
     100% { background-color: transparent; }
 }
+
+/* ===== Rephrase ===== */
+
+.rephrase-btn {
+    background: none;
+    border: none;
+    color: var(--optum-orange);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.rephrase-btn:hover:not(:disabled) {
+    background: #fff1e8;
+}
+
+.rephrase-btn:disabled {
+    color: #b9c2ce;
+    cursor: not-allowed;
+}
+
+.rephrase-box {
+    background: #fffaf6;
+    border: 1px solid #ffd9c2;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.rephrase-box-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--optum-orange-dark);
+    margin-bottom: 6px;
+}
+
+.rephrase-text {
+    font-size: 0.86rem;
+    color: var(--text);
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+.rephrase-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    font-style: italic;
+}

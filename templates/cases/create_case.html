@@ -77,14 +77,37 @@
                     <!-- Column B: fields 6-10 -->
                     <div class="col-md-6">
 
-                        <div class="mb-3">
-                            <label class="form-label" for="{{ form.description.id_for_label }}">
-                                6. Description <span class="text-danger">*</span>
-                            </label>
+                         <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label mb-0" for="{{ form.description.id_for_label }}">
+                                    6. Description <span class="text-danger">*</span>
+                                </label>
+                                <button type="button" class="rephrase-btn" id="rephraseBtn"
+                                        title="Improve wording with AI">
+                                    <i class="bi bi-magic"></i> Rephrase
+                                </button>
+                            </div>
                             {{ form.description }}
                             <div class="form-text text-end">
                                 <span id="charCount">0</span> / 4000 characters
                             </div>
+
+                            <div class="rephrase-box d-none" id="rephraseBox">
+                                <div class="rephrase-box-title">
+                                    <i class="bi bi-magic"></i> Suggested rewrite
+                                </div>
+                                <div class="rephrase-text" id="rephraseText"></div>
+                                <div class="rephrase-note" id="rephraseNote"></div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-primary" id="rephraseAccept">
+                                        Accept
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="rephraseDiscard">
+                                        Discard
+                                    </button>
+                                </div>
+                            </div>
+
                             {% for e in form.description.errors %}
                                 <div class="text-danger small">{{ e }}</div>
                             {% endfor %}
@@ -303,6 +326,91 @@
     document.querySelectorAll('[data-prompt]').forEach((el) => {
         el.addEventListener('click', () => send(el.dataset.prompt));
     });
+
+// ---- Rephrase description ----
+    const rephraseUrl = "{% url 'chatbot_rephrase' %}";
+    const rephraseBtn = document.getElementById('rephraseBtn');
+    const rephraseBox = document.getElementById('rephraseBox');
+    const rephraseText = document.getElementById('rephraseText');
+    const rephraseNote = document.getElementById('rephraseNote');
+    const rephraseAccept = document.getElementById('rephraseAccept');
+    const rephraseDiscard = document.getElementById('rephraseDiscard');
+
+    let rephrasing = false;
+
+    function setRephraseState(enabled) {
+        if (!rephraseBtn || !descField) return;
+        rephraseBtn.disabled = !enabled || descField.value.trim().length < 20;
+    }
+
+    if (descField) {
+        descField.addEventListener('input', () => setRephraseState(!rephrasing));
+        setRephraseState(true);
+    }
+
+    if (rephraseBtn) {
+        rephraseBtn.addEventListener('click', async function () {
+            if (rephrasing) return;
+
+            const original = descField.value.trim();
+            if (original.length < 20) return;
+
+            rephrasing = true;
+            rephraseBtn.disabled = true;
+            rephraseBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Rephrasing...';
+            rephraseBox.classList.add('d-none');
+
+            try {
+                const response = await fetch(rephraseUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ text: original }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    rephraseText.textContent = data.error || 'Could not rephrase this text.';
+                    rephraseNote.textContent = '';
+                    rephraseAccept.classList.add('d-none');
+                } else {
+                    rephraseText.textContent = data.text;
+                    rephraseNote.textContent = data.note || '';
+                    rephraseAccept.classList.remove('d-none');
+                }
+                rephraseBox.classList.remove('d-none');
+
+            } catch (err) {
+                rephraseText.textContent = 'Could not reach the assistant. Please try again.';
+                rephraseNote.textContent = '';
+                rephraseAccept.classList.add('d-none');
+                rephraseBox.classList.remove('d-none');
+            } finally {
+                rephrasing = false;
+                rephraseBtn.innerHTML = '<i class="bi bi-magic"></i> Rephrase';
+                setRephraseState(true);
+            }
+        });
+    }
+
+    if (rephraseAccept) {
+        rephraseAccept.addEventListener('click', function () {
+            descField.value = rephraseText.textContent;
+            descField.dispatchEvent(new Event('input'));
+            rephraseBox.classList.add('d-none');
+            flash(descField);
+        });
+    }
+
+    if (rephraseDiscard) {
+        rephraseDiscard.addEventListener('click', function () {
+            rephraseBox.classList.add('d-none');
+        });
+    }
+
 })();
 </script>
 {% endblock %}

@@ -259,3 +259,99 @@ def _uais_response(message, user=None):
         "UAIS integration is not configured yet. Set UAIS_ENABLED=False "
         "to use the mock engine."
     )
+
+# ----------------------------------------------------------------------
+# Rephrase
+# ----------------------------------------------------------------------
+
+MAX_REPHRASE_LENGTH = 4000
+
+# TODO(uais): PHI SAFETY — before enabling live rephrasing, confirm that
+# case descriptions may be sent to the model at all. Descriptions can
+# contain PHI. Required decisions:
+#   - Is the UAIS endpoint covered by a BAA / approved for PHI?
+#   - If not, block rephrase when includes_phi is Yes, or redact first.
+#   - Confirm retention: is the submitted text logged by the provider?
+# Do not enable UAIS_ENABLED for rephrase until this is answered.
+
+
+class RephraseResult:
+    def __init__(self, success, text='', note='', error='', engine='mock'):
+        self.success = success
+        self.text = text
+        self.note = note
+        self.error = error
+        self.engine = engine
+
+    def to_dict(self):
+        return {
+            'success': self.success,
+            'text': self.text,
+            'note': self.note,
+            'error': self.error,
+        }
+
+
+def rephrase_text(text, user=None):
+    """Improve the wording of a case description. Returns a RephraseResult."""
+    text = (text or '').strip()
+
+    if len(text) < 20:
+        return RephraseResult(
+            success=False,
+            error='Please write a little more before rephrasing.',
+        )
+
+    text = text[:MAX_REPHRASE_LENGTH]
+
+    if UAIS_ENABLED:
+        return _rephrase_uais(text, user)
+    return _rephrase_mock(text)
+
+
+def _rephrase_mock(text):
+    """Light, honest cleanup: spacing, capitalisation, punctuation."""
+    import re
+
+    cleaned = re.sub(r'[ \t]+', ' ', text)
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = re.sub(r'\s+([,.;:!?])', r'\1', cleaned)
+    cleaned = re.sub(r'([,.;:!?])(?=[^\s\d])', r'\1 ', cleaned)
+
+    lines = []
+    for line in cleaned.split('\n'):
+        line = line.strip()
+        if not line:
+            lines.append('')
+            continue
+
+        parts = re.split(r'(?<=[.!?])\s+', line)
+        parts = [p[0].upper() + p[1:] if p else p for p in parts]
+        line = ' '.join(parts)
+
+        if line and line[-1] not in '.!?:':
+            line += '.'
+        lines.append(line)
+
+    cleaned = '\n'.join(lines).strip()
+
+    return RephraseResult(
+        success=True,
+        text=cleaned,
+        note='Basic formatting cleanup. Full rephrasing activates once the '
+             'AI service is connected.',
+    )
+
+
+def _rephrase_uais(text, user=None):
+    """Live rephrasing via UAIS — implemented when integration is confirmed.
+
+    Expected approach:
+      - System instruction: rewrite a support case description for clarity;
+        preserve all technical details, error codes, times and identifiers;
+        do not invent information; return only the rewritten text.
+      - Return RephraseResult(success=True, text=<model output>, engine='uais')
+    """
+    raise NotImplementedError(
+        "UAIS rephrasing is not configured yet. See the PHI safety TODO above."
+    )
