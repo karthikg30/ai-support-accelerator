@@ -78,7 +78,7 @@
                         </span>
                     </td>
                     <td>{{ case.status }}</td>
-                    <td>{{ case.created_at|date:"d M Y, H:i" }}</td>
+                    <td>{{ case.created_at|date:"d M Y, H:i T" }}</td>
                     <td class="text-end">
                         <a href="{% url 'case_detail' case.pk %}"
                            class="btn btn-sm btn-outline-primary">View</a>

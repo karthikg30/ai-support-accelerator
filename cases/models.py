@@ -40,7 +40,13 @@ class Case(models.Model):
         ('David Thompson', 'David Thompson'),
     ]
 
+    SUPPORT_TYPE_CHOICES = [
+        ('ECC Support', 'ECC Support'),
+        ('Internal', 'Internal'),
+    ]
+
     # Form fields
+    support_type = models.CharField(max_length=20, choices=SUPPORT_TYPE_CHOICES)
     account_name = models.CharField(max_length=100, choices=ACCOUNT_CHOICES)
     contact_name = models.CharField(max_length=100, choices=CONTACT_CHOICES)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='Medium')

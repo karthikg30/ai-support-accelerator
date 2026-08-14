@@ -32,6 +32,10 @@
 
     <div class="row g-3">
         <div class="col-md-6">
+            <div class="detail-label">Support Type</div>
+            <div class="detail-value">{{ case.support_type }}</div>
+        </div>
+        <div class="col-md-6">
             <div class="detail-label">Account Name</div>
             <div class="detail-value">{{ case.account_name }}</div>
         </div>
@@ -48,6 +52,10 @@
         <div class="col-md-6">
             <div class="detail-label">Reply Via</div>
             <div class="detail-value">{{ case.reply_via }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Status</div>
+            <div class="detail-value">{{ case.status }}</div>
         </div>
         <div class="col-12">
             <div class="detail-label">Subject</div>
@@ -70,16 +78,16 @@
             <div class="detail-value">{{ case.includes_phi|yesno:"Yes,No" }}</div>
         </div>
         <div class="col-md-6">
-            <div class="detail-label">Status</div>
-            <div class="detail-value">{{ case.status }}</div>
+            <div class="detail-label">Created By</div>
+            <div class="detail-value">{{ case.created_by.get_full_name|default:case.created_by.username }}</div>
         </div>
         <div class="col-md-6">
             <div class="detail-label">Created</div>
-            <div class="detail-value">{{ case.created_at|date:"d M Y, H:i" }}</div>
+            <div class="detail-value">{{ case.created_at|date:"d M Y, H:i T" }}</div>
         </div>
         <div class="col-md-6">
-            <div class="detail-label">Created By</div>
-            <div class="detail-value">{{ case.created_by.username }}</div>
+            <div class="detail-label">Last Updated</div>
+            <div class="detail-value">{{ case.updated_at|date:"d M Y, H:i T" }}</div>
         </div>
     </div>
 

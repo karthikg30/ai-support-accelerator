@@ -41,11 +41,13 @@ class CaseForm(forms.ModelForm):
     class Meta:
         model = Case
         fields = [
-            'account_name', 'contact_name', 'priority', 'reply_via',
-            'subject', 'description', 'product_request_type',
+            'support_type', 'account_name', 'contact_name', 'priority',
+            'reply_via', 'subject', 'description', 'product_request_type',
             'product_category', 'includes_phi',
         ]
+
         widgets = {
+            'support_type': forms.Select(attrs={'class': 'form-select'}),
             'account_name': forms.Select(attrs={'class': 'form-select'}),
             'contact_name': forms.Select(attrs={'class': 'form-select'}),
             'priority': forms.Select(attrs={'class': 'form-select'}),

@@ -43,6 +43,15 @@
     </ul>
 
     <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar">
+                {{ user.first_name.0|default:user.username.0|upper }}
+            </div>
+            <div class="sidebar-user-name">
+                {{ user.get_full_name|default:user.username }}
+            </div>
+        </div>
+
         <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
             <button type="submit" class="sidebar-link logout-btn">
