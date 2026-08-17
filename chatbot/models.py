@@ -35,3 +35,20 @@ class ChatHistory(models.Model):
     def __str__(self):
         return f"{self.user.username}: {self.message[:50]}"
 
+class PHIBlockEvent(models.Model):
+    """Records that a PHI guardrail fired. Deliberately stores no content."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='phi_blocks',
+    )
+    source = models.CharField(max_length=20)
+    detected_types = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} — {self.source} — {self.detected_types}"

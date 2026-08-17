@@ -4,6 +4,8 @@ from django import forms
 
 from .models import Case
 
+from chatbot.services import phi_guard
+
 ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx',
                       '.png', '.jpg', '.jpeg', '.txt']
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
@@ -37,6 +39,58 @@ class CaseForm(forms.ModelForm):
     )
 
     attachments = MultipleFileField(required=False, label='Attachments')
+
+    phi_details = forms.CharField(
+        required=False,
+        label='PHI Information',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Patient identifiers required for this case',
+        }),
+        help_text='Sent to Salesforce with the case. Not stored in this '
+                  'application and never sent to the AI assistant.',
+    )
+
+    def clean_subject(self):
+        subject = self.cleaned_data.get('subject', '')
+        labels = phi_guard.scan(subject)
+        if labels:
+            raise forms.ValidationError(
+                f'This appears to contain PHI ({phi_guard.describe(labels)}). '
+                f'Move patient information into the PHI Information field.'
+            )
+        return subject
+
+    def clean_description(self):
+        description = self.cleaned_data.get('description', '')
+        labels = phi_guard.scan(description)
+        if labels:
+            raise forms.ValidationError(
+                f'This appears to contain PHI ({phi_guard.describe(labels)}). '
+                f'Move patient information into the PHI Information field so '
+                f'the description can be used with the AI assistant.'
+            )
+        return description
+
+    def clean(self):
+        cleaned = super().clean()
+        includes_phi = cleaned.get('includes_phi')
+        phi_details = (cleaned.get('phi_details') or '').strip()
+
+        if includes_phi and not phi_details:
+            self.add_error(
+                'phi_details',
+                'Please provide the PHI details, or set "Includes PHI" to No.'
+            )
+
+        if not includes_phi and phi_details:
+            self.add_error(
+                'phi_details',
+                'Set "Includes PHI" to Yes to submit PHI details.'
+            )
+
+        return cleaned
 
     class Meta:
         model = Case

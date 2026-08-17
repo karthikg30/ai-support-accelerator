@@ -14,10 +14,12 @@ Nothing outside this file should need to change when it is swapped in.
 """
 
 from decouple import config
+from . import phi_guard
 
 UAIS_ENABLED = config('UAIS_ENABLED', default=False, cast=bool)
 
 MAX_MESSAGE_LENGTH = 2000
+
 
 
 class AIResponse:
@@ -42,12 +44,24 @@ class AIResponse:
         }
 
 
+class PHIBlocked(Exception):
+    """Raised when a PHI guardrail prevents an LLM call."""
+
+    def __init__(self, labels):
+        self.labels = labels
+        super().__init__('PHI detected')
+
+
 def get_ai_response(message, user=None):
     """Entry point used by views. Returns an AIResponse."""
     message = (message or '').strip()[:MAX_MESSAGE_LENGTH]
 
     if not message:
         return AIResponse(reply="Please type a question and I'll help.")
+
+    labels = phi_guard.scan(message)
+    if labels:
+        raise PHIBlocked(labels)
 
     if UAIS_ENABLED:
         return _uais_response(message, user)
@@ -303,6 +317,10 @@ def rephrase_text(text, user=None):
         )
 
     text = text[:MAX_REPHRASE_LENGTH]
+
+    labels = phi_guard.scan(text)
+    if labels:
+        raise PHIBlocked(labels)
 
     if UAIS_ENABLED:
         return _rephrase_uais(text, user)

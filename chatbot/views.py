@@ -4,22 +4,35 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from .models import ChatHistory
-from .services.ai_service import MAX_MESSAGE_LENGTH, get_ai_response
+from .models import ChatHistory, PHIBlockEvent
 from .services.ai_service import (
     MAX_MESSAGE_LENGTH,
     MAX_REPHRASE_LENGTH,
+    PHIBlocked,
     get_ai_response,
     rephrase_text,
 )
+from .services import phi_guard
 
 @login_required
 @require_POST
 def ask(request):
     try:
-        payload = json.loads(request.body)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return JsonResponse({'error': 'Invalid request format.'}, status=400)
+        result = get_ai_response(message, user=request.user)
+    except PHIBlocked as blocked:
+        PHIBlockEvent.objects.create(
+            user=request.user,
+            source=source,
+            detected_types=', '.join(blocked.labels),
+        )
+        return JsonResponse({
+            'error': (
+                'This message appears to contain PHI '
+                f'({phi_guard.describe(blocked.labels)}). '
+                'The assistant cannot process patient information. '
+                'Please remove it and describe the issue in general terms.'
+            )
+        }, status=400)
 
     message = (payload.get('message') or '').strip()
     source = payload.get('source', 'panel')
@@ -70,7 +83,22 @@ def rephrase(request):
             status=400,
         )
 
-    result = rephrase_text(text, user=request.user)
+    try:
+        result = rephrase_text(text, user=request.user)
+    except PHIBlocked as blocked:
+        PHIBlockEvent.objects.create(
+            user=request.user,
+            source='rephrase',
+            detected_types=', '.join(blocked.labels),
+        )
+        return JsonResponse({
+            'error': (
+                'The description appears to contain PHI '
+                f'({phi_guard.describe(blocked.labels)}). '
+                'Move patient information into the PHI Information field, '
+                'then rephrase again.'
+            )
+        }, status=400)
 
     if not result.success:
         return JsonResponse({'error': result.error}, status=400)

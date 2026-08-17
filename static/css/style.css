@@ -728,3 +728,19 @@ a:hover {
         display: none;
     }
 }
+
+/* ===== PHI field ===== */
+
+#phiDetailsWrap textarea {
+    border-color: #ffc9a8;
+    background: #fffaf7;
+}
+
+.phi-field-note {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 0.74rem;
+    color: var(--optum-orange-dark);
+    margin-top: 6px;
+}

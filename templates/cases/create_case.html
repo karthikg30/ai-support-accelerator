@@ -156,6 +156,21 @@
                             </div>
                         </div>
 
+                        <div class="mb-3 d-none" id="phiDetailsWrap">
+                            <label class="form-label" for="{{ form.phi_details.id_for_label }}">
+                                PHI Information <span class="text-danger">*</span>
+                            </label>
+                            {{ form.phi_details }}
+                            <div class="phi-field-note">
+                                <i class="bi bi-shield-lock"></i>
+                                Sent to Salesforce with this case. Not stored in this
+                                application and never sent to the AI assistant.
+                            </div>
+                            {% for e in form.phi_details.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.attachments.id_for_label }}">
                                 11. Attachments
@@ -419,7 +434,27 @@
             rephraseBox.classList.add('d-none');
         });
     }
+// ---- Show PHI field only when Includes PHI = Yes ----
+    const phiWrap = document.getElementById('phiDetailsWrap');
+    const phiRadios = document.querySelectorAll('input[name="includes_phi"]');
 
+    function togglePhiField() {
+        let isYes = false;
+        phiRadios.forEach((r) => {
+            if (r.checked && r.value === 'True') isYes = true;
+        });
+
+        if (isYes) {
+            phiWrap.classList.remove('d-none');
+        } else {
+            phiWrap.classList.add('d-none');
+            const field = document.getElementById('{{ form.phi_details.id_for_label }}');
+            if (field) field.value = '';
+        }
+    }
+
+    phiRadios.forEach((r) => r.addEventListener('change', togglePhiField));
+    togglePhiField();
 })();
 </script>
 {% endblock %}

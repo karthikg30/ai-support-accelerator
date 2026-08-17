@@ -2,19 +2,22 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
-from django.views.decorators.http import require_POST
 
 from .forms import CaseForm
 from .models import Attachment, Case
 from .services.salesforce import create_salesforce_case
 
 
-def _push_to_salesforce(case):
-    """Send a case to Salesforce and record the outcome on the case."""
-    result = create_salesforce_case(case)
+def _push_to_salesforce(case, phi_details=''):
+    """Send a case to Salesforce and record the outcome.
+
+    `phi_details` is passed through in memory only — it is never written
+    to the database, and must never be included in log output.
+    """
+    result = create_salesforce_case(case, phi_details=phi_details)
 
     if result.success:
         case.salesforce_case_number = result.case_number
@@ -45,7 +48,9 @@ def create_case(request):
             for uploaded_file in form.cleaned_data['attachments']:
                 Attachment.objects.create(case=case, file=uploaded_file)
 
-            if _push_to_salesforce(case):
+            phi_details = form.cleaned_data.get('phi_details', '')
+
+            if _push_to_salesforce(case, phi_details=phi_details):
                 messages.success(
                     request,
                     f'Case created and sent to Salesforce '
@@ -55,8 +60,11 @@ def create_case(request):
                 messages.warning(
                     request,
                     f'Case #{case.pk} was saved locally, but the Salesforce '
-                    f'sync failed. You can retry it from My Cases.'
+                    f'sync failed. PHI details were not retained and must be '
+                    f're-entered on a new case.'
                 )
+
+            del phi_details
             return redirect('my_cases')
     else:
         form = CaseForm()
@@ -95,21 +103,3 @@ class CaseDetailView(LoginRequiredMixin, DetailView):
     def get_queryset(self):
         # Ownership filter — prevents reading another agent's case by ID.
         return Case.objects.filter(created_by=self.request.user)
-
-
-@login_required
-@require_POST
-def retry_sync(request, pk):
-    case = get_object_or_404(Case, pk=pk, created_by=request.user)
-
-    if case.is_synced:
-        messages.info(request, 'This case is already synced.')
-    elif _push_to_salesforce(case):
-        messages.success(
-            request,
-            f'Case #{case.pk} synced (Ticket {case.salesforce_case_number}).'
-        )
-    else:
-        messages.error(request, f'Sync failed again: {case.sync_error}')
-
-    return redirect('my_cases')

@@ -29,15 +29,19 @@ class SalesforceResult:
         self.error = error
 
 
-def create_salesforce_case(case):
-    """Push a local Case to Salesforce. Returns a SalesforceResult."""
+def create_salesforce_case(case, phi_details=''):
+    """Push a local Case to Salesforce. Returns a SalesforceResult.
+
+    `phi_details` is held in memory for the duration of this call only.
+    It must never be written to the local database or to application logs.
+    """
     if SALESFORCE_ENABLED:
-        return _create_case_live(case)
-    return _create_case_mock(case)
+        return _create_case_live(case, phi_details)
+    return _create_case_mock(case, phi_details)
 
 
-def _create_case_mock(case):
-    """Fake a successful ticket creation."""
+def _create_case_mock(case, phi_details=''):
+    """Fake a successful ticket creation. PHI is accepted and discarded."""
     case_number = f"{datetime.now():%y%m}{random.randint(100000, 999999)}"
     return SalesforceResult(
         success=True,
@@ -46,8 +50,16 @@ def _create_case_mock(case):
     )
 
 
-def _create_case_live(case):
-    """Real Salesforce REST call — implemented when credentials exist."""
+def _create_case_live(case, phi_details=''):
+    """Real Salesforce REST call — implemented when credentials exist.
+
+    TODO(salesforce):
+      - Auth: OAuth2 client credentials (creds via .env / Key Vault)
+      - Endpoint: POST /services/data/vXX.X/sobjects/Case/
+      - Field mapping: pending approval from the SF team
+      - PHI SAFETY: never log the request payload or the error response
+        body. Log status codes and correlation IDs only.
+    """
     raise NotImplementedError(
         "Live Salesforce integration is not configured yet."
     )
