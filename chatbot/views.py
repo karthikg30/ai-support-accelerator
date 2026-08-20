@@ -18,21 +18,9 @@ from .services import phi_guard
 @require_POST
 def ask(request):
     try:
-        result = get_ai_response(message, user=request.user)
-    except PHIBlocked as blocked:
-        PHIBlockEvent.objects.create(
-            user=request.user,
-            source=source,
-            detected_types=', '.join(blocked.labels),
-        )
-        return JsonResponse({
-            'error': (
-                'This message appears to contain PHI '
-                f'({phi_guard.describe(blocked.labels)}). '
-                'The assistant cannot process patient information. '
-                'Please remove it and describe the issue in general terms.'
-            )
-        }, status=400)
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid request format.'}, status=400)
 
     message = (payload.get('message') or '').strip()
     source = payload.get('source', 'panel')
@@ -49,7 +37,22 @@ def ask(request):
     if source not in ('panel', 'page'):
         source = 'panel'
 
-    result = get_ai_response(message, user=request.user)
+    try:
+        result = get_ai_response(message, user=request.user)
+    except PHIBlocked as blocked:
+        PHIBlockEvent.objects.create(
+            user=request.user,
+            source=source,
+            detected_types=', '.join(blocked.labels),
+        )
+        return JsonResponse({
+            'error': (
+                'This message appears to contain PHI '
+                f'({phi_guard.describe(blocked.labels)}). '
+                'The assistant cannot process patient information. '
+                'Please remove it and describe the issue in general terms.'
+            )
+        }, status=400)
 
     ChatHistory.objects.create(
         user=request.user,
