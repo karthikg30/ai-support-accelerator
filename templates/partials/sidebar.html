@@ -23,10 +23,12 @@
         </li>
         
         <li>
-            <a href="#" class="sidebar-link">
+            <a href="{% url 'kb_home' %}"
+               class="sidebar-link {% if request.resolver_match.url_name in 'kb_home kb_category kb_article' %}active{% endif %}">
                 <i class="bi bi-journal-text"></i> <span>Knowledge Base</span>
             </a>
         </li>
+        
         {% comment %}
         <li>
             <a href="#" class="sidebar-link">

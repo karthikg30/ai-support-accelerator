@@ -8,6 +8,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('', include('cases.urls')),
     path('chatbot/', include('chatbot.urls')),
+    path('kb/', include('knowledgebase.urls')),
 ]
 
 if settings.DEBUG:

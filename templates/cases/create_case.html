@@ -273,6 +273,31 @@
         panelBody.scrollTop = panelBody.scrollHeight;
     }
 
+        function addArticleLinks(data) {
+        if (!data.related_articles || !data.related_articles.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-articles';
+
+        const label = document.createElement('div');
+        label.className = 'ai-articles-label';
+        label.textContent = 'Related articles';
+        wrap.appendChild(label);
+
+        data.related_articles.forEach(function (code) {
+            const link = document.createElement('a');
+            link.className = 'ai-article-chip';
+            link.href = '/kb/article/' + encodeURIComponent(code) + '/';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = code;
+            wrap.appendChild(link);
+        });
+
+        panelBody.appendChild(wrap);
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+
     function flash(field) {
         if (!field) return;
         field.classList.add('field-updated');
@@ -329,6 +354,7 @@
             } else {
                 thinking.textContent = data.reply;
                 addApplyButton(data);
+                addArticleLinks(data);
             }
         } catch (err) {
             thinking.textContent = 'Could not reach the assistant. Please try again.';

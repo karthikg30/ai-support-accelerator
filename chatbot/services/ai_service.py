@@ -125,7 +125,7 @@ KNOWLEDGE = [
             'Verify member eligibility for the service date',
             'Escalate to the Claims team if the rejection is unclear',
         ],
-        'articles': ['KB1020', 'KB1021'],
+        'articles': ['KB3006'],
     },
     {
         'keywords': ['enrollment', 'enroll', 'coverage', 'plan change', 'dependent'],
@@ -143,7 +143,7 @@ KNOWLEDGE = [
             'Collect any outstanding documentation',
             'Route to the Enrollment team for processing',
         ],
-        'articles': ['KB1030'],
+        'articles': ['KB1012'],
     },
     {
         'keywords': ['provider', 'directory', 'credential', 'network'],
@@ -161,7 +161,7 @@ KNOWLEDGE = [
             'Verify the network assignment on the contract',
             'Escalate to Provider Data Management if unresolved',
         ],
-        'articles': ['KB1040'],
+        'articles': ['KB3005'],
     },
     {
         'keywords': ['outage', 'down', 'slow', 'timeout', 'error 500', 'not loading'],
@@ -179,7 +179,7 @@ KNOWLEDGE = [
             'Capture the exact error message and timestamp',
             'Escalate to Tier 2 with the collected evidence',
         ],
-        'articles': ['KB1050', 'KB1051'],
+        'articles': 	['KB3004'],
     },
     {
         'keywords': ['phi', 'privacy', 'security', 'breach', 'hipaa'],
@@ -197,7 +197,7 @@ KNOWLEDGE = [
             'Notify the Privacy Office without delay',
             'Preserve evidence and avoid forwarding the data',
         ],
-        'articles': ['KB1060'],
+        'articles': ['KB2005'],
     },
 ]
 
