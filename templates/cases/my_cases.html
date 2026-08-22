@@ -35,11 +35,11 @@
             <thead>
                 <tr>
                     <th>Case ID</th>
-                    <th>Salesforce Ticket</th>
+                    <th>Stage</th>
+                    <th>Tickets</th>
                     <th>Account</th>
                     <th>Subject</th>
                     <th>Priority</th>
-                    <th>Status</th>
                     <th>Created</th>
                     <th></th>
                 </tr>
@@ -49,34 +49,71 @@
                 <tr>
                     <td>#{{ case.pk }}</td>
                     <td>
-                        {% if case.sync_status == 'Synced' %}
-                            <a href="{{ case.salesforce_case_url }}" target="_blank"
-                               rel="noopener noreferrer">
-                                {{ case.salesforce_case_number }}
-                                <i class="bi bi-box-arrow-up-right small"></i>
-                            </a>
-                        {% elif case.sync_status == 'Failed' %}
-                            <span class="badge text-bg-danger" title="{{ case.sync_error }}">
-                                Sync failed
-                            </span>
+                        {% if case.is_draft %}
+                            <span class="badge stage-draft">Draft</span>
                         {% else %}
-                            <span class="badge text-bg-secondary">Pending</span>
+                            <span class="badge stage-submitted">Submitted</span>
                         {% endif %}
                     </td>
-                    <td>{{ case.account_name }}</td>
                     <td>
-                        <a href="{% url 'case_detail' case.pk %}">{{ case.subject }}</a>
+                        {% if case.sync_status == 'Synced' %}
+                            <div>
+                                <span class="ticket-label">SF</span>
+                                <a href="{{ case.salesforce_case_url }}" target="_blank"
+                                   rel="noopener noreferrer">
+                                    {{ case.salesforce_case_number }}
+                                </a>
+                            </div>
+                            {% if case.servicenow_status == 'Created' %}
+                            <div>
+                                <span class="ticket-label">SN</span>
+                                <a href="{{ case.servicenow_ticket_url }}" target="_blank"
+                                   rel="noopener noreferrer">
+                                    {{ case.servicenow_ticket_number }}
+                                </a>
+                            </div>
+                            {% elif case.servicenow_status == 'Failed' %}
+                            <div>
+                                <span class="badge text-bg-danger"
+                                      title="{{ case.servicenow_error }}">
+                                    SN failed
+                                </span>
+                            </div>
+                            {% endif %}
+                        {% elif case.sync_status == 'Failed' %}
+                            <span class="badge text-bg-danger" title="{{ case.sync_error }}">
+                                Submission failed
+                            </span>
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ case.account_name|default:"—" }}</td>
+                    <td>
+                        {% if case.is_draft %}
+                            <a href="{% url 'edit_draft' case.pk %}">
+                                {{ case.subject|default:"(untitled draft)" }}
+                            </a>
+                        {% else %}
+                            <a href="{% url 'case_detail' case.pk %}">{{ case.subject }}</a>
+                        {% endif %}
                     </td>
                     <td>
+                        {% if case.priority %}
                         <span class="badge priority-{{ case.priority|lower }}">
                             {{ case.priority }}
                         </span>
+                        {% endif %}
                     </td>
-                    <td>{{ case.status }}</td>
                     <td>{{ case.created_at|date:"d M Y, H:i T" }}</td>
                     <td class="text-end">
-                        <a href="{% url 'case_detail' case.pk %}"
-                           class="btn btn-sm btn-outline-primary">View</a>
+                        {% if case.is_draft %}
+                            <a href="{% url 'edit_draft' case.pk %}"
+                               class="btn btn-sm btn-primary">Resume</a>
+                        {% else %}
+                            <a href="{% url 'case_detail' case.pk %}"
+                               class="btn btn-sm btn-outline-primary">View</a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

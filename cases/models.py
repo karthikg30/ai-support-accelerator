@@ -49,6 +49,8 @@ class Case(models.Model):
     support_type = models.CharField(max_length=20, choices=SUPPORT_TYPE_CHOICES)
     account_name = models.CharField(max_length=100, choices=ACCOUNT_CHOICES)
     contact_name = models.CharField(max_length=100, choices=CONTACT_CHOICES)
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=30, blank=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='Medium')
     reply_via = models.CharField(max_length=10, choices=REPLY_VIA_CHOICES, default='Email')
     subject = models.CharField(max_length=200)
@@ -68,19 +70,37 @@ class Case(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     # Salesforce sync
+        # External ticketing
     SYNC_STATUS_CHOICES = [
+        ('Draft', 'Draft'),
         ('Pending', 'Pending'),
         ('Synced', 'Synced'),
         ('Failed', 'Failed'),
     ]
 
+    SERVICENOW_STATUS_CHOICES = [
+        ('Not requested', 'Not requested'),
+        ('Created', 'Created'),
+        ('Failed', 'Failed'),
+    ]
+
+    # Salesforce — always created on submit
     salesforce_case_number = models.CharField(max_length=50, blank=True)
     salesforce_case_url = models.URLField(blank=True)
     sync_status = models.CharField(
-        max_length=10, choices=SYNC_STATUS_CHOICES, default='Pending'
+        max_length=10, choices=SYNC_STATUS_CHOICES, default='Draft'
     )
     sync_error = models.TextField(blank=True)
     synced_at = models.DateTimeField(null=True, blank=True)
+
+    # ServiceNow — optional additional incident
+    servicenow_requested = models.BooleanField(default=False)
+    servicenow_ticket_number = models.CharField(max_length=50, blank=True)
+    servicenow_ticket_url = models.URLField(blank=True)
+    servicenow_status = models.CharField(
+        max_length=20, choices=SERVICENOW_STATUS_CHOICES, default='Not requested'
+    )
+    servicenow_error = models.TextField(blank=True)
 
 
     class Meta:
@@ -90,8 +110,16 @@ class Case(models.Model):
         return f"Case #{self.pk} — {self.subject}"
     
     @property
+    def is_draft(self):
+        return self.sync_status == 'Draft'
+
+    @property
     def is_synced(self):
         return self.sync_status == 'Synced'
+
+    @property
+    def stage(self):
+        return 'Draft' if self.sync_status == 'Draft' else 'Submitted'
 
 
 class Attachment(models.Model):

@@ -16,17 +16,46 @@
     <div class="alert alert-success d-flex justify-content-between align-items-center">
         <span>
             <i class="bi bi-check-circle me-1"></i>
-            Synced to Salesforce as ticket <strong>{{ case.salesforce_case_number }}</strong>
+            Salesforce case <strong>{{ case.salesforce_case_number }}</strong>
         </span>
         <a href="{{ case.salesforce_case_url }}" target="_blank" rel="noopener noreferrer"
            class="btn btn-sm btn-primary">
             Open in Salesforce <i class="bi bi-box-arrow-up-right"></i>
         </a>
     </div>
+
+        {% if case.servicenow_status == 'Created' %}
+        <div class="alert alert-success d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-check-circle me-1"></i>
+                ServiceNow incident <strong>{{ case.servicenow_ticket_number }}</strong>
+            </span>
+            <a href="{{ case.servicenow_ticket_url }}" target="_blank" rel="noopener noreferrer"
+               class="btn btn-sm btn-outline-primary">
+                Open in ServiceNow <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+        </div>
+        {% elif case.servicenow_status == 'Failed' %}
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            ServiceNow incident could not be created: {{ case.servicenow_error }}
+        </div>
+        {% endif %}
+
     {% elif case.sync_status == 'Failed' %}
     <div class="alert alert-danger">
         <i class="bi bi-exclamation-triangle me-1"></i>
-        Salesforce sync failed: {{ case.sync_error }}
+        Salesforce submission failed: {{ case.sync_error }}
+    </div>
+    {% elif case.is_draft %}
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <span>
+            <i class="bi bi-pencil-square me-1"></i>
+            This case is a draft and has not been submitted.
+        </span>
+        <a href="{% url 'edit_draft' case.pk %}" class="btn btn-sm btn-primary">
+            Resume
+        </a>
     </div>
     {% endif %}
 
@@ -42,6 +71,14 @@
         <div class="col-md-6">
             <div class="detail-label">Contact Name</div>
             <div class="detail-value">{{ case.contact_name }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Contact Email</div>
+            <div class="detail-value">{{ case.contact_email|default:"—" }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="detail-label">Contact Mobile</div>
+            <div class="detail-value">{{ case.contact_phone|default:"—" }}</div>
         </div>
         <div class="col-md-6">
             <div class="detail-label">Priority</div>

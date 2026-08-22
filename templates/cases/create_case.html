@@ -3,6 +3,19 @@
 {% block title %}Create Case · Support Accelerator AI{% endblock %}
 
 {% block content %}
+{% if draft %}
+<div class="alert alert-warning d-flex align-items-start">
+    <i class="bi bi-pencil-square me-2 mt-1"></i>
+    <div>
+        <strong>Resuming draft #{{ draft.pk }}</strong> — last saved
+        {{ draft.updated_at|date:"d M Y, H:i T" }}.
+        {% if draft.includes_phi %}
+        PHI details are never stored and must be re-entered before submitting.
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-3">
 
     <!-- ===== LEFT: Case form (~70%) ===== -->
@@ -56,24 +69,48 @@
                                 <div class="text-danger small mt-1">{{ e }}</div>
                             {% endfor %}
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.contact_email.id_for_label }}">
+                                4. Contact Email
+                            </label>
+                            {{ form.contact_email }}
+                            {% for e in form.contact_email.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.contact_phone.id_for_label }}">
+                                5. Contact Mobile
+                            </label>
+                            {{ form.contact_phone }}
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i>
+                                Client contact details only. Patient contact information
+                                belongs in the PHI Information field.
+                            </div>
+                            {% for e in form.contact_phone.errors %}
+                                <div class="text-danger small mt-1">{{ e }}</div>
+                            {% endfor %}
+                        </div>
 
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.priority.id_for_label }}">
-                                4. Priority <span class="text-danger">*</span>
+                                6. Priority <span class="text-danger">*</span>
                             </label>
                             {{ form.priority }}
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.reply_via.id_for_label }}">
-                                5. Reply Via <span class="text-danger">*</span>
+                                7. Comm Type <span class="text-danger">*</span>
                             </label>
                             {{ form.reply_via }}
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.subject.id_for_label }}">
-                                6. Subject <span class="text-danger">*</span>
+                                8. Subject <span class="text-danger">*</span>
                             </label>
                             {{ form.subject }}
                             {% for e in form.subject.errors %}
@@ -89,7 +126,7 @@
                          <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label class="form-label mb-0" for="{{ form.description.id_for_label }}">
-                                    7. Description <span class="text-danger">*</span>
+                                    9. Description <span class="text-danger">*</span>
                                 </label>
                                 <button type="button" class="rephrase-btn" id="rephraseBtn"
                                         title="Improve wording with AI">
@@ -124,21 +161,21 @@
 
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.product_request_type.id_for_label }}">
-                                8. Product Request Type <span class="text-muted small">(auto-assigned)</span>
+                                10. Product Request Type <span class="text-muted small">(auto-assigned)</span>
                             </label>
                             {{ form.product_request_type }}
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.product_category.id_for_label }}">
-                                9. Product Category <span class="text-muted small">(auto-assigned)</span>
+                                11. Product Category <span class="text-muted small">(auto-assigned)</span>
                             </label>
                             {{ form.product_category }}
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label d-block">
-                                10. Includes PHI Information? <span class="text-danger">*</span>
+                                12. Includes PHI Information? <span class="text-danger">*</span>
                             </label>
                             <div class="phi-radios">
                                 {% for radio in form.includes_phi %}
@@ -173,7 +210,7 @@
 
                         <div class="mb-3">
                             <label class="form-label" for="{{ form.attachments.id_for_label }}">
-                                11. Attachments
+                                13. Attachments
                             </label>
                             <input type="file" name="attachments" multiple
                                    id="{{ form.attachments.id_for_label }}"
@@ -186,14 +223,36 @@
                             {% endfor %}
                         </div>
 
+                        <div class="mb-3">
+                            <div class="servicenow-option">
+                                <div class="form-check">
+                                    {{ form.servicenow_requested }}
+                                    <label class="form-check-label"
+                                           for="{{ form.servicenow_requested.id_for_label }}">
+                                        Also create a ServiceNow incident
+                                    </label>
+                                </div>
+                                <div class="form-text mb-0">
+                                    The Salesforce case is always created. Tick this to
+                                    raise a linked ServiceNow incident as well.
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-                <div class="text-end mt-3">
-                    <button type="submit" class="btn btn-primary px-4">
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="submit" name="action" value="draft"
+                            class="btn btn-outline-secondary px-3">
+                        <i class="bi bi-save me-1"></i> Save Draft
+                    </button>
+                    <button type="submit" name="action" value="submit"
+                            class="btn btn-primary px-4">
                         <i class="bi bi-send me-1"></i> Submit Case
                     </button>
                 </div>
+
             </form>
 
         </div>

@@ -75,6 +75,10 @@ class CaseForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+
+        if 'phi_details' not in self.fields:
+            return cleaned          # draft form — PHI is never saved
+
         includes_phi = cleaned.get('includes_phi')
         phi_details = (cleaned.get('phi_details') or '').strip()
 
@@ -95,15 +99,23 @@ class CaseForm(forms.ModelForm):
     class Meta:
         model = Case
         fields = [
-            'support_type', 'account_name', 'contact_name', 'priority',
+            'support_type', 'account_name', 'contact_name', 'contact_email', 'contact_phone', 'priority',
             'reply_via', 'subject', 'description', 'product_request_type',
-            'product_category', 'includes_phi',
+            'product_category', 'includes_phi', 'servicenow_requested',
         ]
 
         widgets = {
             'support_type': forms.Select(attrs={'class': 'form-select'}),
             'account_name': forms.Select(attrs={'class': 'form-select'}),
             'contact_name': forms.Select(attrs={'class': 'form-select'}),
+                        'contact_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'name@organisation.com',
+            }),
+            'contact_phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '+1 312 555 0100',
+            }),
             'priority': forms.Select(attrs={'class': 'form-select'}),
             'reply_via': forms.Select(attrs={'class': 'form-select'}),
             'subject': forms.TextInput(attrs={
@@ -124,6 +136,9 @@ class CaseForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Auto-assigned',
             }),
+            'servicenow_requested': forms.CheckboxInput(
+                attrs={'class': 'form-check-input'}
+            ),            
         }
 
     def clean_attachments(self):
@@ -139,3 +154,16 @@ class CaseForm(forms.ModelForm):
                     f"'{f.name}' is larger than the 25 MB limit."
                 )
         return files
+
+class CaseDraftForm(CaseForm):
+    """Draft save: minimal validation, and PHI is never stored.
+
+    The PHI checks on subject and description stay active — a draft
+    containing PHI would be PHI at rest, which the design forbids.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop('phi_details', None)
+        for field in self.fields.values():
+            field.required = False
