@@ -16,6 +16,17 @@
 </div>
 {% endif %}
 
+{% if seeded %}
+<div class="alert alert-info d-flex align-items-start">
+    <i class="bi bi-robot me-2 mt-1"></i>
+    <div>
+        <strong>Started from your conversation.</strong>
+        The subject and description have been drafted from what you discussed —
+        please review and edit before submitting.
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-3">
 
     <!-- ===== LEFT: Case form (~70%) ===== -->
@@ -274,6 +285,8 @@
     const input = document.getElementById('aiInput');
     const sendBtn = document.getElementById('aiSend');
 
+    let conversationId = {% if conversation_id %}{{ conversation_id }}{% else %}null{% endif %};
+
     // ---- Description character counter ----
     const descField = document.getElementById('{{ form.description.id_for_label }}');
     const counter = document.getElementById('charCount');
@@ -395,6 +408,8 @@
         addBubble(text, 'user');
 
         const thinking = addBubble('Thinking...', 'ai');
+        
+
 
         try {
             const response = await fetch(askUrl, {
@@ -403,10 +418,18 @@
                     'Content-Type': 'application/json',
                     'X-CSRFToken': getCookie('csrftoken'),
                 },
-                body: JSON.stringify({ message: text, source: 'panel' }),
+                body: JSON.stringify({
+                    message: text,
+                    source: 'panel',
+                    conversation_id: conversationId,
+                }),
             });
 
             const data = await response.json();
+
+            if (data.conversation_id) {
+                conversationId = data.conversation_id;
+            }
 
             if (!response.ok) {
                 thinking.textContent = data.error || 'Something went wrong.';
@@ -415,6 +438,7 @@
                 addApplyButton(data);
                 addArticleLinks(data);
             }
+
         } catch (err) {
             thinking.textContent = 'Could not reach the assistant. Please try again.';
         } finally {
@@ -481,6 +505,7 @@
 
                 const data = await response.json();
 
+
                 if (!response.ok) {
                     rephraseText.textContent = data.error || 'Could not rephrase this text.';
                     rephraseNote.textContent = '';
@@ -540,6 +565,12 @@
 
     phiRadios.forEach((r) => r.addEventListener('change', togglePhiField));
     togglePhiField();
+
+        // Show the most recent messages when arriving with a conversation
+    if (panelBody) {
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+    
 })();
 </script>
 {% endblock %}

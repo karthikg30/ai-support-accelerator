@@ -10,7 +10,8 @@ from .forms import CaseDraftForm, CaseForm
 from .models import Attachment, Case
 from .services.salesforce import create_salesforce_case
 from .services.servicenow import create_servicenow_incident
-
+from chatbot.models import Conversation
+from chatbot.services.case_seed import seed_from_conversation
 
 def _save_attachments(form, case):
     for uploaded_file in form.cleaned_data.get('attachments') or []:
@@ -126,11 +127,34 @@ def _handle_case_form(request, instance=None):
 
             return redirect('my_cases')
     else:
-        form = CaseForm(instance=instance)
+        initial = {}
+        conversation = None
+        conversation_id = request.GET.get('conversation')
+
+        if conversation_id and instance is None:
+            conversation = Conversation.objects.filter(
+                pk=conversation_id, user=request.user
+            ).first()
+            if conversation:
+                initial = seed_from_conversation(conversation)
+
+        form = CaseForm(instance=instance, initial=initial)
+
+    conversation_id = request.GET.get('conversation', '')
+    conversation_messages = []
+    if conversation_id:
+        conv = Conversation.objects.filter(
+            pk=conversation_id, user=request.user
+        ).first()
+        if conv:
+            conversation_messages = conv.messages.order_by('created_at')
 
     return render(request, 'cases/create_case.html', {
         'form': form,
         'draft': instance,
+        'seeded': bool(conversation_id) and instance is None,
+        'conversation_id': conversation_id,
+        'conversation_messages': conversation_messages,
     })
 
 

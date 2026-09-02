@@ -6,9 +6,10 @@ from django.urls import include, path
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
-    path('', include('cases.urls')),
-    path('chatbot/', include('chatbot.urls')),
     path('kb/', include('knowledgebase.urls')),
+    #path('cvm/', include('cvm.urls')),
+    path('', include('chatbot.urls')),
+    path('', include('cases.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Assistant · Support Accelerator AI{% endblock %}
+
+{% block content %}
+<div class="assistant-layout">
+
+    <!-- History rail -->
+    <div class="assistant-history card">
+        <div class="history-header">
+            <span>Recent conversations</span>
+            <a href="{% url 'assistant' %}" class="btn btn-sm btn-outline-primary" title="New conversation">
+                <i class="bi bi-plus-lg"></i>
+            </a>
+        </div>
+        <div class="history-list">
+            {% for item in history %}
+            <a href="{% url 'assistant' %}?c={{ item.pk }}"
+               class="history-item {% if conversation and conversation.pk == item.pk %}active{% endif %}">
+                <div class="history-item-title">{{ item.display_title }}</div>
+                <div class="history-item-date">{{ item.updated_at|date:"d M, H:i" }}</div>
+            </a>
+            {% empty %}
+            <div class="history-empty">
+                No conversations yet. Ask a question to get started.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Chat column -->
+    <div class="assistant-main card">
+
+        <div class="assistant-header">
+            <div>
+                <div class="assistant-title">
+                    <i class="bi bi-robot"></i> Support Accelerator AI
+                </div>
+                <div class="assistant-subtitle">
+                    Ask about an issue, then raise a case when you're ready.
+                </div>
+            </div>
+            <a href="{% url 'create_case' %}{% if conversation %}?conversation={{ conversation.pk }}{% endif %}"
+               class="btn btn-primary" id="createCaseBtn">
+                <i class="bi bi-plus-circle me-1"></i> Create Support Case
+            </a>
+        </div>
+
+        <div class="assistant-body" id="aiPanelBody">
+
+            {% if conversation_messages %}
+                {% for item in conversation_messages %}
+                <div class="chat-bubble chat-user">{{ item.message }}</div>
+                <div class="chat-bubble chat-ai">{{ item.response }}</div>
+                {% endfor %}
+            {% else %}
+                <div class="ai-welcome">
+                    Hi{% if user.first_name %} {{ user.first_name }}{% endif %}!
+                    I'm your AI assistant. Describe the issue and I'll help you
+                    classify it, find related articles, and raise a case.
+                </div>
+
+                <div class="ai-suggestions" id="aiSuggestions">
+                    <button type="button" class="ai-suggestion" data-prompt="What information do I need before creating a case?">
+                        <i class="bi bi-info-circle"></i>
+                        What information do I need before creating a case?
+                    </button>
+                    <button type="button" class="ai-suggestion" data-prompt="How should I classify this issue?">
+                        <i class="bi bi-tags"></i>
+                        How should I classify this issue?
+                    </button>
+                    <button type="button" class="ai-suggestion" data-prompt="Portal login issues">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Portal login issues
+                    </button>
+                    <button type="button" class="ai-suggestion" data-prompt="When should I escalate a case?">
+                        <i class="bi bi-arrow-up-circle"></i>
+                        When should I escalate a case?
+                    </button>
+                </div>
+
+                <div class="phi-note">
+                    <i class="bi bi-shield-check"></i>
+                    Please do not share any patient information (PHI) in this chat.
+                </div>
+            {% endif %}
+
+        </div>
+
+        <div class="assistant-footer">
+            <div class="input-group">
+                <input type="text" class="form-control" id="aiInput"
+                       placeholder="Describe the issue..." maxlength="2000" autofocus>
+                <button class="btn btn-primary" type="button" id="aiSend">
+                    <i class="bi bi-send"></i>
+                </button>
+            </div>
+            <div class="ai-disclaimer">
+                AI responses can be inaccurate. Please verify important information.
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const askUrl = "{% url 'chatbot_ask' %}";
+    const panelBody = document.getElementById('aiPanelBody');
+    const input = document.getElementById('aiInput');
+    const sendBtn = document.getElementById('aiSend');
+    const createBtn = document.getElementById('createCaseBtn');
+    const caseUrl = "{% url 'create_case' %}";
+
+    let conversationId = {{ conversation.pk|default:"null" }};
+    let busy = false;
+
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    function addBubble(text, who) {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble chat-' + who;
+        bubble.textContent = text;
+        panelBody.appendChild(bubble);
+        panelBody.scrollTop = panelBody.scrollHeight;
+        return bubble;
+    }
+
+    function addArticleLinks(data) {
+        if (!data.related_articles || !data.related_articles.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-articles';
+
+        const label = document.createElement('div');
+        label.className = 'ai-articles-label';
+        label.textContent = 'Related articles';
+        wrap.appendChild(label);
+
+        data.related_articles.forEach(function (code) {
+            const link = document.createElement('a');
+            link.className = 'ai-article-chip';
+            link.href = '/kb/article/' + encodeURIComponent(code) + '/';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = code;
+            wrap.appendChild(link);
+        });
+
+        panelBody.appendChild(wrap);
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+
+    function updateCreateLink() {
+        if (createBtn && conversationId) {
+            createBtn.href = caseUrl + '?conversation=' + conversationId;
+        }
+    }
+
+    async function send(message) {
+        if (busy) return;
+        const text = (message || input.value).trim();
+        if (!text) return;
+
+        busy = true;
+        input.value = '';
+
+        const suggestions = document.getElementById('aiSuggestions');
+        if (suggestions) {
+            panelBody.innerHTML = '';
+        }
+
+        addBubble(text, 'user');
+        const thinking = addBubble('Thinking...', 'ai');
+
+        try {
+            const response = await fetch(askUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    message: text,
+                    source: 'assistant',
+                    conversation_id: conversationId,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.conversation_id) {
+                conversationId = data.conversation_id;
+                updateCreateLink();
+            }
+
+            if (!response.ok) {
+                thinking.textContent = data.error || 'Something went wrong.';
+            } else {
+                thinking.textContent = data.reply;
+                addArticleLinks(data);
+            }
+        } catch (err) {
+            thinking.textContent = 'Could not reach the assistant. Please try again.';
+        } finally {
+            busy = false;
+            input.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', () => send());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            send();
+        }
+    });
+
+    document.querySelectorAll('[data-prompt]').forEach((el) => {
+        el.addEventListener('click', () => send(el.dataset.prompt));
+    });
+
+    panelBody.scrollTop = panelBody.scrollHeight;
+    updateCreateLink();
+})();
+</script>
+{% endblock %}

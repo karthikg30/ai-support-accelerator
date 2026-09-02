@@ -117,7 +117,7 @@ USE_TZ = True
 
 # Login behavior
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'create_case'
+LOGIN_REDIRECT_URL = 'assistant'
 LOGOUT_REDIRECT_URL = 'login'
 
 # Static files

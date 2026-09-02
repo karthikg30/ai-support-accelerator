@@ -7,54 +7,65 @@
 
     <div class="ai-panel-body" id="aiPanelBody">
 
-        <div class="ai-welcome">
-            Hi! I'm your AI assistant. How can I help you today?
-        </div>
+        {% if conversation_messages %}
 
-        <div class="ai-suggestions" id="aiSuggestions">
-            <button type="button" class="ai-suggestion" data-prompt="What information do I need before creating a case?">
-                <i class="bi bi-info-circle"></i>
-                What information do I need before creating a case?
-            </button>
-            <button type="button" class="ai-suggestion" data-prompt="How should I classify this issue?">
-                <i class="bi bi-tags"></i>
-                How should I classify this issue?
-            </button>
-            <button type="button" class="ai-suggestion" data-prompt="Search similar issues">
-                <i class="bi bi-search"></i>
-                Search similar issues
-            </button>
-            <button type="button" class="ai-suggestion" data-prompt="Recommended troubleshooting steps">
-                <i class="bi bi-tools"></i>
-                Recommended troubleshooting steps
-            </button>
-        </div>
+            {% for item in conversation_messages %}
+            <div class="chat-bubble chat-user">{{ item.message }}</div>
+            <div class="chat-bubble chat-ai">{{ item.response }}</div>
+            {% endfor %}
 
-        <div id="aiTopicsBlock">
-            <div class="ai-section-title">Popular topics</div>
-            <ul class="ai-topics">
-                <li data-prompt="How do I create a case?">
-                    <i class="bi bi-file-earmark-text"></i> Creating a Case
-                </li>
-                <li data-prompt="Portal login issues">
-                    <i class="bi bi-file-earmark-text"></i> Portal Login Issues
-                </li>
-                <li data-prompt="Password reset">
-                    <i class="bi bi-file-earmark-text"></i> Password Reset
-                </li>
-                <li data-prompt="When should I escalate a case?">
-                    <i class="bi bi-file-earmark-text"></i> Escalation Guidelines
-                </li>
-                <li data-prompt="PHI and security policy">
-                    <i class="bi bi-file-earmark-text"></i> Security Policy
-                </li>
-            </ul>
-        </div>
+        {% else %}
 
-        <div class="phi-note">
-            <i class="bi bi-shield-check"></i>
-            Please do not share any patient information (PHI) in this chat.
-        </div>
+            <div class="ai-welcome">
+                Hi! I'm your AI assistant. How can I help you today?
+            </div>
+
+            <div class="ai-suggestions" id="aiSuggestions">
+                <button type="button" class="ai-suggestion" data-prompt="What information do I need before creating a case?">
+                    <i class="bi bi-info-circle"></i>
+                    What information do I need before creating a case?
+                </button>
+                <button type="button" class="ai-suggestion" data-prompt="How should I classify this issue?">
+                    <i class="bi bi-tags"></i>
+                    How should I classify this issue?
+                </button>
+                <button type="button" class="ai-suggestion" data-prompt="Search similar issues">
+                    <i class="bi bi-search"></i>
+                    Search similar issues
+                </button>
+                <button type="button" class="ai-suggestion" data-prompt="Recommended troubleshooting steps">
+                    <i class="bi bi-tools"></i>
+                    Recommended troubleshooting steps
+                </button>
+            </div>
+
+            <div id="aiTopicsBlock">
+                <div class="ai-section-title">Popular topics</div>
+                <ul class="ai-topics">
+                    <li data-prompt="How do I create a case?">
+                        <i class="bi bi-file-earmark-text"></i> Creating a Case
+                    </li>
+                    <li data-prompt="Portal login issues">
+                        <i class="bi bi-file-earmark-text"></i> Portal Login Issues
+                    </li>
+                    <li data-prompt="Password reset">
+                        <i class="bi bi-file-earmark-text"></i> Password Reset
+                    </li>
+                    <li data-prompt="When should I escalate a case?">
+                        <i class="bi bi-file-earmark-text"></i> Escalation Guidelines
+                    </li>
+                    <li data-prompt="PHI and security policy">
+                        <i class="bi bi-file-earmark-text"></i> Security Policy
+                    </li>
+                </ul>
+            </div>
+
+            <div class="phi-note">
+                <i class="bi bi-shield-check"></i>
+                Please do not share any patient information (PHI) in this chat.
+            </div>
+
+        {% endif %}
 
     </div>
 

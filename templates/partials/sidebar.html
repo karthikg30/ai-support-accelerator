@@ -9,39 +9,30 @@
 
     <ul class="sidebar-menu">
         <li>
-            <a href="{% url 'create_case' %}"
-               class="sidebar-link {% if request.resolver_match.url_name == 'create_case' %}active{% endif %}">
-                <i class="bi bi-plus-circle"></i> <span>Create Case</span>
+            <a href="{% url 'assistant' %}"
+               class="sidebar-link {% if request.resolver_match.url_name == 'assistant' %}active{% endif %}">
+                <i class="bi bi-robot"></i> <span>AI Assistant</span>
             </a>
         </li>
-        
-        <li>
-            <a href="{% url 'my_cases' %}"
-               class="sidebar-link {% if request.resolver_match.url_name in 'my_cases case_detail' %}active{% endif %}">
-                <i class="bi bi-folder2-open"></i> <span>My Cases</span>
-            </a>
-        </li>
-        
         <li>
             <a href="{% url 'kb_home' %}"
                class="sidebar-link {% if request.resolver_match.url_name in 'kb_home kb_category kb_article' %}active{% endif %}">
                 <i class="bi bi-journal-text"></i> <span>Knowledge Base</span>
             </a>
         </li>
+        <li>
+            <a href="{% url 'create_case' %}"
+               class="sidebar-link {% if request.resolver_match.url_name == 'create_case' %}active{% endif %}">
+                <i class="bi bi-plus-circle"></i> <span>Create Case</span>
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'my_cases' %}"
+               class="sidebar-link {% if request.resolver_match.url_name in 'my_cases case_detail edit_draft' %}active{% endif %}">
+                <i class="bi bi-folder2-open"></i> <span>My Cases</span>
+            </a>
+        </li>
         
-        {% comment %}
-        <li>
-            <a href="#" class="sidebar-link">
-                <i class="bi bi-robot"></i> <span>AI Assistant</span>
-            </a>
-        </li>
-        <li>
-            <a href="#" class="sidebar-link">
-                <i class="bi bi-gear"></i> <span>Settings</span>
-            </a>
-        </li>
-        {% endcomment %}
-
     </ul>
 
     <div class="sidebar-footer">
