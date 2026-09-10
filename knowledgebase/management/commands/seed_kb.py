@@ -294,6 +294,134 @@ In these cases, leave the account locked, do not reset the password, and escalat
 Repeated lockouts for one user:
 If the same account locks repeatedly, the cause is often a saved credential on a secondary device or a service still using an old password. Check mobile devices and mail clients before assuming user error.""",
     },
+    {
+        'code': 'KB1014',
+        'category': 'user_management',
+        'title': 'Galaxy and Polaris: New User Creation',
+        'summary': 'End-to-end procedure for provisioning a new client user across Galaxy and Polaris.',
+        'content': """Use this procedure when a client requests an account for a new user on the Insight Platform.
+
+Prerequisites:
+You need access to both user management platforms before you can complete any part of this procedure.
+- Galaxy Access Management: https://galaxy.example-health.invalid
+  If you do not have access, follow the Galaxy access request procedure.
+- Polaris Identity Console: https://polaris.example-health.invalid
+  If you do not have access, follow the Polaris access request procedure.
+
+Step 1 - Identify an existing user for permission mirroring
+Ask the requestor or case submitter whether there is an existing user whose permissions can be mirrored. If there is, use their roles and permissions as the template. This is the fastest and least error-prone route, so always check first.
+
+Step 2 - Confirm the client's contracted modules
+Only required if mirroring is not possible.
+In Salesforce, open the Account, go to the Account-Related tab, scroll to Client Configuration, and select the record containing "Insight" in the name. Open the Account Notes and find the Contracted Modules section.
+Verify which modules the client is contracted for. The requestor, who will be the main client contact or the Client Value Manager, must specify which roles the new user should have.
+
+Step 3 - Verify the user does not already exist
+Search Galaxy by name and by email address. Duplicate accounts cause access problems that are difficult to diagnose later, so complete this check before creating anything.
+
+Step 4 - Enter the user information
+Provide name, email, identity provider, and role type.
+- Identity Provider: found in Salesforce under Account-Related, Client Configuration, the Insight record, then Account Notes. Select the matching value from the dropdown. It is often quicker to check another user from the same organisation to confirm which provider applies.
+- Role Type: select User for non-provider accounts, or Self Service for provider accounts. If the user is a provider, the case submitter or requestor will state this.
+
+Step 5 - Assign the organisation
+Under Organization Information, select the correct client organisation.
+
+Step 6 - Set roles and permissions
+If mirroring an existing user, copy their roles and permissions exactly.
+
+If not mirroring, and the user is a provider for reviews:
+- Add the Provider ID and grant access to PROD - Provider Review - Self Service. This is mandatory for any Self Service account.
+- If the Provider ID is missing, log in to Insight Platform PROD, navigate to the client, and retrieve it from Physician Spotlight.
+
+If not mirroring, and the user is not a provider:
+- Ask the submitter which modules they need, and assign View Only access for each required module.
+- Available modules for non-provider users:
+    PROD - Advanced Reporting - View Only
+    PROD - Quality & Utilization - Module User
+    PROD - Surgical Cost - Validation Reports
+    PROD - Surgical Capacity - View Only
+- Collect the applicable facilities and specialties alongside the module access.
+- In the Insight Platform front end, go to User Data Configuration, select the user, and assign facility and specialty permissions.
+
+After creation:
+The user receives an email with registration instructions. Their Galaxy status remains Invited until they complete registration.
+
+Related: KB1015 covers access problems during live training. KB1016 covers FSSO sign-in failures.""",
+    },
+    {
+        'code': 'KB1015',
+        'category': 'user_management',
+        'title': 'Live Training Support: User Access Issues',
+        'summary': 'Diagnosing and resolving client user access problems during a live training session.',
+        'content': """Use this procedure when supporting a live client training session. Issues raised on these calls need resolving while the session is running, so preparation beforehand matters more than usual.
+
+Before the training:
+1. Confirm you have both Galaxy and Polaris access.
+2. Confirm you have been granted visibility of this client in Galaxy.
+3. Confirm whether the client uses federated single sign-on (FSSO). If they do, obtain their specific FSSO link before the session starts.
+4. Confirm that accounts have been created for the client users in advance.
+5. Review which users have activated their accounts and which are still pending. Users in a pending state are the most likely to need help during the call.
+
+During the training - first check
+If a user reports a problem, check whether they have an existing account in Galaxy before anything else.
+
+If they do not have an account:
+- Create the Galaxy account and permissions following the procedure in KB1014.
+- Once created, they receive an email with registration instructions.
+
+If they do have an account, check the account status:
+- Status Invited: the user has not completed registration. Resend the registration link by email, or paste it into the meeting chat, which is usually faster during a live session.
+- Status Active: send them the application link. Confirm first whether the client uses FSSO - see KB1016, as sending the wrong URL is the most common cause of failure at this point.
+
+If the user still cannot get in, check Polaris:
+- If they have no Polaris identity, create one for them.
+- If they do, check its status and reset the password if required.
+- Confirm the Polaris email matches the Galaxy email exactly. A mismatch between the two is a common cause of sign-in failure that looks like a password problem.
+
+Common pitfalls:
+- Sending the standard URL to an FSSO client (see KB1016).
+- Assuming a password reset will fix a mismatch between the Polaris and Galaxy email addresses. It will not.
+- Treating an Invited status as a fault. The account is fine; registration simply has not been completed.
+
+Related: KB1014 for new user creation, KB1016 for FSSO URL routing.""",
+    },
+    {
+        'code': 'KB1016',
+        'category': 'user_management',
+        'title': 'FSSO Clients: Sign-in Fails on the Standard URL',
+        'summary': 'A routing problem that presents as an account problem. Check this before resetting anything.',
+        'content': """Symptom:
+A client user reports they cannot sign in. The error suggests their account is not recognised, is not authorised, or does not exist. The user is often confident the problem is with their account.
+
+Cause:
+The client is configured for federated single sign-on (FSSO), and the user was given the standard application URL. The standard URL routes to the general sign-in path, which cannot authenticate a federated user. The account is completely healthy; the request is simply arriving at the wrong door.
+
+Why this is frequently misdiagnosed:
+The error text points at identity, so the natural next steps are to check the account, reset the password, or re-issue the invitation. None of these change anything, because nothing is wrong with the account. Agents can spend a long time working on a healthy account before checking which URL the user actually opened.
+
+Diagnosis:
+1. Ask the user exactly which link they opened. Ask them to paste it rather than describe it.
+2. Check whether the client is configured for FSSO. This is recorded against the client configuration and should be confirmed before any training session.
+3. If the client uses FSSO and the user opened the standard URL, this is the cause. Stop here - no account changes are needed.
+
+Resolution:
+Send the client's FSSO URL.
+- Standard URL, for non-FSSO clients only: https://app.example-health.invalid/dashboard
+- FSSO URL pattern: https://app.example-health.invalid/?fssocode=[client name]
+
+The FSSO code is specific to the client. Confirm it from the client configuration rather than guessing, and never assume one client's code applies to another.
+
+How to recognise this quickly:
+- The account status in Galaxy is Active, yet sign-in fails.
+- Other users at the same client are working - check which URL those users were given.
+- The user was sent a link by someone who did not know the client was federated.
+
+Prevention:
+Confirm FSSO status and obtain the correct URL before any training session or onboarding communication. Where a client is federated, the standard URL should never be sent to their users at all.
+
+Related: KB1015 for live training support, KB1014 for new user creation.""",
+    },
 
     # ---------- Product Articles ----------
     {

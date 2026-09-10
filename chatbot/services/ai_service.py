@@ -73,6 +73,71 @@ def get_ai_response(message, user=None):
 # ----------------------------------------------------------------------
 
 KNOWLEDGE = [
+        {
+        'keywords': ['fsso', 'federated', 'single sign-on', 'wrong url', 'wrong link',
+                     'standard url', 'not recognised', 'not recognized',
+                     'not authorised', 'not authorized', 'unable to sign in',
+                     'cannot sign in', 'signing in', 'sign-in fail'],
+        'category': 'User Management',
+        'request_type': 'Access Request',
+        'priority': 'High',
+        'causes': [
+            'Client is federated and the user was sent the standard URL',
+            'FSSO code missing or incorrect in the link the user opened',
+            'Client FSSO status not confirmed before the link was sent',
+        ],
+        'steps': [
+            'Ask the user to paste the exact link they opened',
+            'Check whether the client is configured for FSSO',
+            'If federated, send the client-specific FSSO URL instead',
+            'Do not reset the password — the account is healthy, the routing is wrong',
+            'Confirm other users at the same client received the correct link',
+        ],
+        'articles': ['KB1016', 'KB1015'],
+    },
+    {
+        'keywords': ['live training', 'training call', 'training session',
+                     'during training', 'training support'],
+        'category': 'User Management',
+        'request_type': 'Access Request',
+        'priority': 'High',
+        'causes': [
+            'Account created but registration not completed (status Invited)',
+            'Client uses FSSO and was sent the standard URL',
+            'Polaris email does not match the Galaxy email',
+            'No Galaxy account was created before the session',
+        ],
+        'steps': [
+            'Check whether the user has a Galaxy account at all',
+            'If the account exists, check its status — Invited means registration is incomplete',
+            'For Invited users, resend the registration link or paste it into the meeting chat',
+            'For Active users, confirm FSSO status before sending any URL',
+            'If still failing, check Polaris status and confirm the email matches Galaxy',
+        ],
+        'articles': ['KB1015', 'KB1016'],
+    },
+    {
+        'keywords': ['galaxy', 'polaris', 'new user', 'provision', 'insight platform',
+                     'identity provider', 'self service', 'provider id',
+                     'mirror permissions', 'create account'],
+        'category': 'User Management',
+        'request_type': 'Access Request',
+        'priority': 'Medium',
+        'causes': [
+            'New user account has not been provisioned in Galaxy',
+            'Roles and permissions were not assigned after account creation',
+            'Polaris identity missing or not linked to the Galaxy account',
+            'Facility and specialty permissions not configured in Insight Platform',
+        ],
+        'steps': [
+            'Check whether an existing user can be mirrored — this is the fastest route',
+            'If not, confirm the client contracted modules in Salesforce under Account Notes',
+            'Search Galaxy by name and email to rule out a duplicate account',
+            'Create the user with the correct identity provider and role type',
+            'Assign roles, then configure facilities and specialties in Insight Platform',
+        ],
+        'articles': ['KB1014', 'KB1015'],
+    },
     {
         'keywords': ['portal', 'login', 'sign in', 'cannot access', 'lab result'],
         'category': 'Patient Portal',
