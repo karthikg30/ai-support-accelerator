@@ -93,6 +93,7 @@ a:hover {
     font-size: 0.95rem;
     color: #ffffff;
     line-height: 1.2;
+    white-space: nowrap;
 }
 
 .brand-subtitle {
@@ -932,6 +933,7 @@ a:hover {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 1px solid var(--border);
 }
 
 .assistant-header {
@@ -1130,4 +1132,9 @@ a:hover {
 
 .login-brand-mark-light {
     background: #FFF1E8;
+}
+
+.brand-icon-img {
+    flex: 0 0 auto;
+    margin-top: -2px;
 }
