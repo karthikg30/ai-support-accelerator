@@ -1064,3 +1064,70 @@ a:hover {
         min-height: 70vh;
     }
 }
+
+.ai-case-chip {
+    display: inline-block;
+    background: #eef4ff;
+    color: var(--optum-navy);
+    border-radius: 6px;
+    padding: 3px 9px;
+    margin: 0 5px 5px 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.ai-case-chip:hover {
+    background: var(--optum-navy);
+    color: #ffffff;
+}
+
+/* ===== Login PHI badge ===== */
+
+.login-phi-badge {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    background: rgba(244, 127, 40, 0.12);
+    border: 1px solid rgba(244, 127, 40, 0.40);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    max-width: 460px;
+}
+
+.login-phi-badge i {
+    flex: 0 0 auto;
+    color: var(--optum-orange-light);
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.login-phi-badge > div {
+    flex: 1 1 auto;
+}
+
+.login-phi-badge strong {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--optum-orange-light);
+    margin-bottom: 2px;
+}
+
+.login-phi-badge span {
+    display: block;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.45;
+}
+
+.login-brand-note {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.login-brand-mark-light {
+    background: #FFF1E8;
+}

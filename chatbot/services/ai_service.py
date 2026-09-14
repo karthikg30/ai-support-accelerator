@@ -16,6 +16,10 @@ Nothing outside this file should need to change when it is swapped in.
 from decouple import config
 from . import phi_guard
 
+SALESFORCE_CASE_BASE_URL = config(
+    'SALESFORCE_CASE_BASE_URL',
+    default='https://example.lightning.force.com/lightning/r/Case'
+)
 UAIS_ENABLED = config('UAIS_ENABLED', default=False, cast=bool)
 
 MAX_MESSAGE_LENGTH = 2000
@@ -26,12 +30,14 @@ class AIResponse:
     """Uniform response shape, whether mock or live."""
 
     def __init__(self, reply, suggested_category='', suggested_priority='',
-                 suggested_request_type='', related_articles=None, engine='mock'):
+                 suggested_request_type='', related_articles=None,
+                 similar_cases=None, engine='mock'):
         self.reply = reply
         self.suggested_category = suggested_category
         self.suggested_priority = suggested_priority
         self.suggested_request_type = suggested_request_type
         self.related_articles = related_articles or []
+        self.similar_cases = similar_cases or []
         self.engine = engine
 
     def to_dict(self):
@@ -41,6 +47,7 @@ class AIResponse:
             'suggested_priority': self.suggested_priority,
             'suggested_request_type': self.suggested_request_type,
             'related_articles': self.related_articles,
+            'similar_cases': self.similar_cases,
         }
 
 
@@ -94,6 +101,11 @@ KNOWLEDGE = [
             'Confirm other users at the same client received the correct link',
         ],
         'articles': ['KB1016', 'KB1015'],
+        'tickets': [
+            # TODO: replace `id` with the real Salesforce 18-character case ID
+            {'number': '00856472', 'id': 'PLACEHOLDER_CASE_ID_1',
+             'label': 'FSSO user could not sign in on standard URL'},
+        ],
     },
     {
         'keywords': ['live training', 'training call', 'training session',
@@ -115,6 +127,10 @@ KNOWLEDGE = [
             'If still failing, check Polaris status and confirm the email matches Galaxy',
         ],
         'articles': ['KB1015', 'KB1016'],
+        'tickets': [
+            {'number': '00000002', 'id': 'PLACEHOLDER_CASE_ID_2',
+             'label': 'Multiple users unable to access during training'},
+        ],
     },
     {
         'keywords': ['galaxy', 'polaris', 'new user', 'provision', 'insight platform',
@@ -137,6 +153,10 @@ KNOWLEDGE = [
             'Assign roles, then configure facilities and specialties in Insight Platform',
         ],
         'articles': ['KB1014', 'KB1015'],
+        'tickets': [
+            {'number': '00000003', 'id': 'PLACEHOLDER_CASE_ID_3',
+             'label': 'New provider account provisioning request'},
+        ],
     },
     {
         'keywords': ['portal', 'login', 'sign in', 'cannot access', 'lab result'],
@@ -316,6 +336,14 @@ def _mock_response(message):
                 suggested_priority=entry['priority'],
                 suggested_request_type=entry['request_type'],
                 related_articles=entry['articles'],
+                similar_cases=[
+                    {
+                        'number': t['number'],
+                        'url': t.get('url') or f"{SALESFORCE_CASE_BASE_URL}/{t['id']}/view",
+                        'label': t.get('label', ''),
+                    }
+                    for t in entry.get('tickets', [])
+                ],
             )
 
     return AIResponse(
