@@ -71,7 +71,5 @@ def _seed_mock(conversation, messages):
 
 
 def _seed_uais(conversation, messages):
-    """Summarise the conversation into case fields — pending integration."""
-    raise NotImplementedError(
-        "UAIS conversation summarisation is not configured yet."
-    )
+    """Not implemented yet. Falls back to mock seeding."""
+    return _seed_mock(conversation, messages)

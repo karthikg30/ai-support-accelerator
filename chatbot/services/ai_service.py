@@ -16,6 +16,13 @@ Nothing outside this file should need to change when it is swapped in.
 from decouple import config
 from . import phi_guard
 
+import json
+import logging
+
+from . import phi_guard, uais_client
+
+logger = logging.getLogger(__name__)
+
 SALESFORCE_CASE_BASE_URL = config(
     'SALESFORCE_CASE_BASE_URL',
     default='https://example.lightning.force.com/lightning/r/Case'
@@ -358,15 +365,113 @@ def _mock_response(message):
 
 
 # ----------------------------------------------------------------------
+# UAIS engine
+# ----------------------------------------------------------------------
+
+VALID_CATEGORIES = [
+    'User Management', 'Patient Portal', 'Claims', 'Enrollment',
+    'Provider Access', 'Technical Issues', 'Account Management', 'Security',
+]
+
+VALID_PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
+
+VALID_REQUEST_TYPES = [
+    'Technical Issue', 'Access Request', 'Claims Inquiry',
+    'Enrollment Request', 'Provider Support', 'Security Inquiry',
+]
+
+UAIS_SYSTEM_PROMPT = """You are a Tier-1 support assistant for a healthcare \
+technology company.
+
+An agent will describe a support issue. Reply with a single json object and \
+nothing else.
+
+Rules:
+- Give practical troubleshooting guidance based on the symptom described.
+- Do NOT invent company-specific details: internal tool names, URLs, system \
+names, team names, ticket numbers, or procedures you have not been told about.
+- If you are not confident, say so plainly in the reply rather than guessing.
+- Never include patient identifiers in your reply.
+- Choose suggested_category, suggested_priority and suggested_request_type \
+ONLY from the allowed values below. If none fit, use an empty string.
+
+Allowed suggested_category: {categories}
+Allowed suggested_priority: {priorities}
+Allowed suggested_request_type: {request_types}
+
+Priority guidance: a single affected user is usually Medium, multiple users \
+or a whole site is High, and anything with a security, privacy or \
+patient-safety impact is Critical.
+
+Respond with exactly this json shape:
+{{
+  "reply": "your guidance as plain text, using short lines or numbered steps",
+  "suggested_category": "",
+  "suggested_priority": "",
+  "suggested_request_type": ""
+}}"""
+
+
+def _build_system_prompt():
+    return UAIS_SYSTEM_PROMPT.format(
+        categories=' | '.join(VALID_CATEGORIES),
+        priorities=' | '.join(VALID_PRIORITIES),
+        request_types=' | '.join(VALID_REQUEST_TYPES),
+    )
+
+
+def _pick(value, allowed):
+    """Return the value only if it matches an allowed option, else ''."""
+    if not value:
+        return ''
+    value = str(value).strip()
+    for option in allowed:
+        if value.lower() == option.lower():
+            return option
+    return ''
+
+
+# ----------------------------------------------------------------------
 # UAIS engine (not yet implemented)
 # ----------------------------------------------------------------------
 
 def _uais_response(message, user=None):
-    raise NotImplementedError(
-        "UAIS integration is not configured yet. Set UAIS_ENABLED=False "
-        "to use the mock engine."
-    )
+    """Live response from UAIS.
 
+    Article and case chips are intentionally empty here — they arrive in
+    Step 2, sourced from retrieval metadata rather than invented by the model.
+    """
+    try:
+        raw = uais_client.call_llm(
+            prompt=message,
+            system=_build_system_prompt(),
+            json_mode=True,
+        )
+    except uais_client.UAISError as exc:
+        logger.error('UAIS unavailable: %s', exc)
+        return AIResponse(
+            reply=(
+                'The assistant is temporarily unavailable. Please try again '
+                'in a moment, or continue without it.'
+            ),
+            engine='uais',
+        )
+
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning('UAIS returned content that was not valid JSON')
+        return AIResponse(reply=raw.strip(), engine='uais')
+
+    return AIResponse(
+        reply=(data.get('reply') or '').strip(),
+        suggested_category=_pick(data.get('suggested_category'), VALID_CATEGORIES),
+        suggested_priority=_pick(data.get('suggested_priority'), VALID_PRIORITIES),
+        suggested_request_type=_pick(
+            data.get('suggested_request_type'), VALID_REQUEST_TYPES
+        ),
+        engine='uais',
+    )
 # ----------------------------------------------------------------------
 # Rephrase
 # ----------------------------------------------------------------------
@@ -455,14 +560,7 @@ def _rephrase_mock(text):
 
 
 def _rephrase_uais(text, user=None):
-    """Live rephrasing via UAIS — implemented when integration is confirmed.
-
-    Expected approach:
-      - System instruction: rewrite a support case description for clarity;
-        preserve all technical details, error codes, times and identifiers;
-        do not invent information; return only the rewritten text.
-      - Return RephraseResult(success=True, text=<model output>, engine='uais')
-    """
-    raise NotImplementedError(
-        "UAIS rephrasing is not configured yet. See the PHI safety TODO above."
-    )
+    """Not implemented yet. Falls back to the mock cleanup so the Rephrase
+    button keeps working while UAIS is enabled for chat."""
+    logger.info('UAIS rephrase not implemented; using mock cleanup')
+    return _rephrase_mock(text)
