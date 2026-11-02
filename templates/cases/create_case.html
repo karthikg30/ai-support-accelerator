@@ -370,6 +370,35 @@
         panelBody.scrollTop = panelBody.scrollHeight;
     }
 
+        function addSimilarCases(data) {
+        if (!data.similar_cases || !data.similar_cases.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-articles';
+
+        const label = document.createElement('div');
+        label.className = 'ai-articles-label';
+        label.textContent = 'Similar past cases';
+        wrap.appendChild(label);
+
+        data.similar_cases.forEach(function (item) {
+            const link = document.createElement('a');
+            link.className = 'ai-case-chip';
+            link.href = item.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = item.number;
+            if (item.label) link.title = item.label;
+            wrap.appendChild(link);
+        });
+
+        panelBody.appendChild(wrap);
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+
+        addArticleLinks(data);
+        addSimilarCases(data);
+        
     function flash(field) {
         if (!field) return;
         field.classList.add('field-updated');

@@ -20,6 +20,7 @@ import json
 import logging
 
 from . import phi_guard, uais_client
+from . import kb_index
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ UAIS_ENABLED = config('UAIS_ENABLED', default=False, cast=bool)
 
 MAX_MESSAGE_LENGTH = 2000
 
-
+STRICT_GROUNDING = config('KB_STRICT_GROUNDING', default=False, cast=bool)
 
 class AIResponse:
     """Uniform response shape, whether mock or live."""
@@ -380,17 +381,16 @@ VALID_REQUEST_TYPES = [
     'Enrollment Request', 'Provider Support', 'Security Inquiry',
 ]
 
-UAIS_SYSTEM_PROMPT = """You are a Tier-1 support assistant for a healthcare \
-technology company.
+UNGROUNDED_PREFIX = (
+    "Note: this is general guidance, not from our knowledge base.\n\n"
+)
 
-An agent will describe a support issue. Reply with a single json object and \
-nothing else.
+NOT_FOUND_REPLY = (
+    "I don't have anything in the knowledge base that covers this. "
+    "Try rephrasing, or check with Tier 2 if it's urgent."
+)
 
-Rules:
-- Give practical troubleshooting guidance based on the symptom described.
-- Do NOT invent company-specific details: internal tool names, URLs, system \
-names, team names, ticket numbers, or procedures you have not been told about.
-- If you are not confident, say so plainly in the reply rather than guessing.
+_SHARED_RULES = """Rules:
 - Never include patient identifiers in your reply.
 - Choose suggested_category, suggested_priority and suggested_request_type \
 ONLY from the allowed values below. If none fit, use an empty string.
@@ -411,9 +411,44 @@ Respond with exactly this json shape:
   "suggested_request_type": ""
 }}"""
 
+GROUNDED_PROMPT = """You are a Tier-1 support assistant for a healthcare \
+technology company.
 
-def _build_system_prompt():
-    return UAIS_SYSTEM_PROMPT.format(
+Answer the agent's question using ONLY the knowledge base extracts below.
+
+Grounding rules:
+- Base your answer only on the extracts. Do not add steps, tools, system \
+names, URLs or procedures that do not appear in them.
+- If the extracts only partly answer the question, say what they do cover \
+and state plainly what is missing.
+- Prefer the exact wording of the extracts over your own phrasing when \
+describing a procedure.
+
+KNOWLEDGE BASE EXTRACTS
+=======================
+{context}
+=======================
+
+""" + _SHARED_RULES
+
+UNGROUNDED_PROMPT = """You are a Tier-1 support assistant for a healthcare \
+technology company.
+
+Nothing in the knowledge base matched this question, so answer from general \
+support knowledge.
+
+- Do NOT invent company-specific details: internal tool names, URLs, system \
+names, team names, ticket numbers, or procedures you have not been told about.
+- Keep the guidance general and say plainly where the agent would need to \
+check local documentation.
+
+""" + _SHARED_RULES
+
+
+def _build_system_prompt(context=None):
+    template = GROUNDED_PROMPT if context else UNGROUNDED_PROMPT
+    return template.format(
+        context=context or '',
         categories=' | '.join(VALID_CATEGORIES),
         priorities=' | '.join(VALID_PRIORITIES),
         request_types=' | '.join(VALID_REQUEST_TYPES),
@@ -430,21 +465,69 @@ def _pick(value, allowed):
             return option
     return ''
 
+def _build_context(results):
+    """Join retrieved chunks into the prompt context block.
+
+    Each chunk already carries its own header (product, article, section),
+    so the model can see where every passage came from.
+    """
+    return '\n\n---\n\n'.join(hit['document'] for hit in results)
+
+
+def _chips_from_results(results):
+    """Derive article and case chips from what retrieval actually returned.
+
+    Article codes come from chunk metadata; tickets are looked up from the
+    article itself, so ticket links can change without re-indexing.
+    """
+    codes = list(dict.fromkeys(
+        hit['metadata'].get('article_code')
+        for hit in results
+        if hit['metadata'].get('article_code')
+    ))
+    if not codes:
+        return [], []
+
+    from knowledgebase.models import KnowledgeArticle
+
+    articles = {
+        a.code: a for a in KnowledgeArticle.objects.filter(code__in=codes)
+    }
+
+    related_articles = [code for code in codes if code in articles]
+
+    similar_cases = []
+    seen = set()
+    for code in related_articles:
+        for ticket in (articles[code].related_tickets or []):
+            number = ticket.get('number')
+            if number and number not in seen:
+                seen.add(number)
+                similar_cases.append(ticket)
+
+    return related_articles, similar_cases
 
 # ----------------------------------------------------------------------
 # UAIS engine (not yet implemented)
 # ----------------------------------------------------------------------
 
 def _uais_response(message, user=None):
-    """Live response from UAIS.
+    """Live response from UAIS, grounded in retrieved knowledge base chunks."""
+    results = kb_index.search(message)
+    grounded = kb_index.is_grounded(results)
 
-    Article and case chips are intentionally empty here — they arrive in
-    Step 2, sourced from retrieval metadata rather than invented by the model.
-    """
+    if not grounded:
+        results = []
+        if STRICT_GROUNDING:
+            logger.info('No grounded match; strict mode, skipping the model')
+            return AIResponse(reply=NOT_FOUND_REPLY, engine='uais')
+
+    context = _build_context(results) if grounded else None
+
     try:
         raw = uais_client.call_llm(
             prompt=message,
-            system=_build_system_prompt(),
+            system=_build_system_prompt(context=context),
             json_mode=True,
         )
     except uais_client.UAISError as exc:
@@ -463,13 +546,21 @@ def _uais_response(message, user=None):
         logger.warning('UAIS returned content that was not valid JSON')
         return AIResponse(reply=raw.strip(), engine='uais')
 
+    reply = (data.get('reply') or '').strip()
+    if reply and not grounded:
+        reply = UNGROUNDED_PREFIX + reply
+
+    related_articles, similar_cases = _chips_from_results(results)
+
     return AIResponse(
-        reply=(data.get('reply') or '').strip(),
+        reply=reply,
         suggested_category=_pick(data.get('suggested_category'), VALID_CATEGORIES),
         suggested_priority=_pick(data.get('suggested_priority'), VALID_PRIORITIES),
         suggested_request_type=_pick(
             data.get('suggested_request_type'), VALID_REQUEST_TYPES
         ),
+        related_articles=related_articles,
+        similar_cases=similar_cases,
         engine='uais',
     )
 # ----------------------------------------------------------------------

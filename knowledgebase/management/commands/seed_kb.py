@@ -297,6 +297,8 @@ If the same account locks repeatedly, the cause is often a saved credential on a
     {
         'code': 'KB1014',
         'category': 'user_management',
+        'product': 'CCC',
+        'related_tickets': [],
         'title': 'Galaxy and Polaris: New User Creation',
         'summary': 'End-to-end procedure for provisioning a new client user across Galaxy and Polaris.',
         'content': """Use this procedure when a client requests an account for a new user on the Insight Platform.
@@ -389,6 +391,14 @@ Related: KB1014 for new user creation, KB1016 for FSSO URL routing.""",
     {
         'code': 'KB1016',
         'category': 'user_management',
+        'product_code': 'CCC',
+        'related_tickets': [
+            {
+                'number': '00856472',
+                'url': 'https://example.lightning.force.com/lightning/r/Case/PLACEHOLDER_CASE_ID_1/view',
+                'label': 'FSSO user could not sign in on standard URL',
+            }
+        ],
         'title': 'FSSO Clients: Sign-in Fails on the Standard URL',
         'summary': 'A routing problem that presents as an account problem. Check this before resetting anything.',
         'content': """Symptom:
@@ -602,6 +612,8 @@ class Command(BaseCommand):
                     'category': data['category'],
                     'summary': data['summary'],
                     'content': data['content'],
+                    'product_code': data.get('product_code', ''),
+                    'related_tickets': data.get('related_tickets', []),
                 },
             )
             if was_created:

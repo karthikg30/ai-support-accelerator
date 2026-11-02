@@ -26,6 +26,8 @@ class KnowledgeArticle(models.Model):
     code = models.CharField(max_length=20, unique=True)
     title = models.CharField(max_length=200)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    product_code = models.CharField(max_length=20, blank=True)
+    related_tickets = models.JSONField(default=list, blank=True)
     summary = models.CharField(max_length=300, blank=True)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
