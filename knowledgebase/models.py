@@ -8,10 +8,8 @@ CATEGORY_ABBREV = {
 
 
 def product_choices():
-    """Built from the registry so the dropdown can never drift from it."""
     from chatbot.services.product_registry import PRODUCT_REGISTRY
-
-    return [('', '— none —')] + [
+    return [
         (code, f'{code} — {data["name"]}')
         for code, data in sorted(PRODUCT_REGISTRY.items())
     ]

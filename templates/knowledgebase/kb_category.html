@@ -3,32 +3,42 @@
 {% block title %}{{ label }} · Knowledge Base{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-        <h4 class="mb-1">
-            <i class="bi {{ icon }} me-1"></i> {{ label }}
-        </h4>
-        <p class="text-muted small mb-0">{{ blurb }}</p>
-    </div>
-    <a href="{% url 'kb_home' %}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left me-1"></i> Knowledge Base
-    </a>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item">
+            <a href="{% url 'kb_home' %}">Knowledge Base</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
+    </ol>
+</nav>
+
+<div class="mb-4">
+    <h4 class="mb-1">
+        <i class="bi {{ icon }} me-1"></i> {{ label }}
+    </h4>
+    <p class="text-muted small mb-0">
+        {{ blurb }}
+        {% if total %}
+            · {{ total }} article{{ total|pluralize }} across {{ products|length }} products
+        {% endif %}
+    </p>
 </div>
 
 <div class="row g-3">
-    {% for article in articles %}
-    <div class="col-md-6">
-        <a href="{% url 'kb_article' article.code %}" class="kb-card card p-3 h-100">
-            <div class="kb-card-code">{{ article.code }}</div>
-            <div class="kb-card-title">{{ article.title }}</div>
-            <div class="kb-card-summary">{{ article.summary }}</div>
+    {% for product in products %}
+    <div class="col-md-4">
+        <a href="{% url 'kb_product' category product.code %}"
+           class="kb-card card p-3 h-100 {% if not product.count %}opacity-50{% endif %}">
+            <div class="kb-card-code">{{ product.code }}</div>
+            <div class="kb-card-title">{{ product.name }}</div>
+            <div class="kb-card-summary">
+                {% if product.count %}
+                    {{ product.count }} article{{ product.count|pluralize }}
+                {% else %}
+                    No articles yet
+                {% endif %}
+            </div>
         </a>
-    </div>
-    {% empty %}
-    <div class="col-12">
-        <div class="card p-4 text-center text-muted">
-            No articles in this category yet.
-        </div>
     </div>
     {% endfor %}
 </div>
