@@ -244,11 +244,13 @@ def search(question, n_results=None, where=None):
 
     if results:
         logger.info(
-            'KB search: %d hits, best %.3f (%s / %s)',
+            'KB search: %d hits — %s',
             len(results),
-            results[0]['distance'],
-            results[0]['metadata'].get('article_code'),
-            results[0]['metadata'].get('section'),
+            ', '.join(
+                f"{h['metadata'].get('article_code')}/"
+                f"{h['metadata'].get('section')} {h['distance']:.3f}"
+                for h in results
+            ),
         )
     else:
         logger.info('KB search: no hits')
@@ -282,10 +284,10 @@ def filter_results(results):
     cutoff = min(GROUNDING_THRESHOLD, best + CITATION_MARGIN)
     kept = [r for r in results if r['distance'] <= cutoff]
 
-    if len(kept) < len(results):
-        logger.info(
-            'KB filter: kept %d of %d hits (best %.3f, cutoff %.3f)',
-            len(kept), len(results), best, cutoff,
-        )
+    logger.info(
+        'KB filter: kept %d of %d (best %.3f, cutoff %.3f) — %s',
+        len(kept), len(results), best, cutoff,
+        ', '.join(r['metadata'].get('article_code') for r in kept),
+    )
 
     return kept
