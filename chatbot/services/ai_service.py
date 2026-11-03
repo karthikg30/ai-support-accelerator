@@ -86,6 +86,33 @@ def get_ai_response(message, user=None):
 # ----------------------------------------------------------------------
 # Mock engine
 # ----------------------------------------------------------------------
+GUIDANCE = {
+    'what information': (
+        "Before creating a case, collect:\n"
+        "1. Account and contact details\n"
+        "2. A clear one-line summary of the issue\n"
+        "3. When it started and how many users are affected\n"
+        "4. Exact error messages or screenshots\n"
+        "5. Steps already attempted\n"
+        "6. Whether PHI is involved"
+    ),
+    'classify': (
+        "To classify an issue:\n"
+        "1. Identify the product the user is working in\n"
+        "2. Decide whether it is access, data, or functionality\n"
+        "3. Set priority by impact: a single user is usually Medium, "
+        "multiple users or a whole site is High, and anything with a "
+        "security, privacy or patient-safety impact is Critical"
+    ),
+    'escalat': (
+        "Escalate when:\n"
+        "1. The documented troubleshooting steps are exhausted\n"
+        "2. Multiple users or a whole site is affected\n"
+        "3. There is a security, privacy, or patient-safety concern\n"
+        "4. The issue exceeds the Tier-1 resolution window\n"
+        "Include what you have already tried in the escalation notes."
+    ),
+}
 
 def _mock_response(message):
     """Fallback when UAIS is disabled.
