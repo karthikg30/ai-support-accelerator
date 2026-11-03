@@ -33,6 +33,10 @@ PRODUCT_REGISTRY = {
         'name': 'Optum Charge Capture',
         'aliases': ['OCC', 'Charge Capture', ],
     },
+       'CCC': {
+        'name': 'Crimson Continuum of Care',
+        'aliases': ['CCC', 'Crimson', 'Continuum of Care'],
+    },
 }
 
 UNKNOWN_PRODUCT = {'name': '', 'aliases': []}
