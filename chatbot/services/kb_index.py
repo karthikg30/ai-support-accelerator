@@ -259,3 +259,33 @@ def search(question, n_results=None, where=None):
 def is_grounded(results):
     """True when the best match is close enough to answer from."""
     return bool(results) and results[0]['distance'] <= GROUNDING_THRESHOLD
+
+CITATION_MARGIN = config('KB_CITATION_MARGIN', default=0.12, cast=float)
+
+
+def filter_results(results):
+    """
+    Narrow a result set to the hits that genuinely belong to the best match.
+
+    Two caps, both needed:
+      - absolute: never keep a hit the grounding rule would have rejected
+      - relative: never keep a hit much worse than the best one, because a
+        query's best distance varies hugely with phrasing length
+
+    Used for both prompt context and citation chips, so the articles we cite
+    are the articles the answer was actually built from.
+    """
+    if not results:
+        return []
+
+    best = results[0]['distance']
+    cutoff = min(GROUNDING_THRESHOLD, best + CITATION_MARGIN)
+    kept = [r for r in results if r['distance'] <= cutoff]
+
+    if len(kept) < len(results):
+        logger.info(
+            'KB filter: kept %d of %d hits (best %.3f, cutoff %.3f)',
+            len(kept), len(results), best, cutoff,
+        )
+
+    return kept

@@ -304,7 +304,12 @@ def _uais_response(message, user=None):
     results = kb_index.search(message)
     grounded = kb_index.is_grounded(results)
 
-    if not grounded:
+    if grounded:
+        # Narrow to the hits that belong to the best match, so the prompt
+        # context and the citation chips describe the same small set of
+        # articles the answer was actually built from.
+        results = kb_index.filter_results(results)
+    else:
         results = []
         if STRICT_GROUNDING:
             logger.info('No grounded match; strict mode, skipping the model')
