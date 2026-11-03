@@ -1,11 +1,12 @@
 """
 Product registry.
 
-Single source of truth for product names and their shorthands. Used to
-build chunk headers at index time and to expand queries at search time,
-so the two can never drift apart.
-
-TODO: confirm codes, names and aliases with the real product list.
+Single source of truth for product codes, display names and aliases.
+Used by:
+  - knowledgebase.models.product_choices()  -> admin dropdown
+  - knowledgebase.models._generate_code()   -> article code prefix
+  - kb_index.build_header()                 -> embedded context header
+  - kb_index.expand_query()                 -> alias expansion at search time
 """
 
 PRODUCT_REGISTRY = {
@@ -29,11 +30,11 @@ PRODUCT_REGISTRY = {
         'name': 'Performance Analytics Provider',
         'aliases': ['OPA', 'Performance Analytics', 'Optum Performance Analytics'],
     },
-	'OCC': {
+    'OCC': {
         'name': 'Optum Charge Capture',
-        'aliases': ['OCC', 'Charge Capture', ],
+        'aliases': ['OCC', 'Charge Capture'],
     },
-       'CCC': {
+    'CCC': {
         'name': 'Crimson Continuum of Care',
         'aliases': ['CCC', 'Crimson', 'Continuum of Care'],
     },
@@ -41,6 +42,17 @@ PRODUCT_REGISTRY = {
 
 UNKNOWN_PRODUCT = {'name': '', 'aliases': []}
 
+# Case-insensitive lookup: 'ECAC' / 'ecac' / 'eCAC' all resolve to 'eCAC'.
+_LOOKUP = {code.upper(): code for code in PRODUCT_REGISTRY}
+
+
+def canonical_code(code):
+    """Return the registry's spelling of a product code, or '' if unknown."""
+    key = _LOOKUP.get((code or '').strip().upper())
+    return key or ''
+
 
 def get_product(code):
-    return PRODUCT_REGISTRY.get((code or '').upper(), UNKNOWN_PRODUCT)
+    """Return the registry entry for a code, or a blank entry if unknown."""
+    key = canonical_code(code)
+    return PRODUCT_REGISTRY.get(key, UNKNOWN_PRODUCT)
