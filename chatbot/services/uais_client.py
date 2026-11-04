@@ -171,12 +171,18 @@ def call_llm(prompt, system=None, json_mode=False, temperature=0.2):
     if not response.choices:
         raise UAISError('UAIS returned no choices')
 
+    choice = response.choices[0]
+    finish = getattr(choice, 'finish_reason', None) or '?'
+
     usage = getattr(response, 'usage', None)
     logger.info(
-        'UAIS ok in %.2fs, prompt_tokens=%s completion_tokens=%s',
+        'UAIS ok in %.2fs, prompt_tokens=%s completion_tokens=%s finish=%s',
         elapsed,
         getattr(usage, 'prompt_tokens', '?'),
         getattr(usage, 'completion_tokens', '?'),
+        finish,
     )
+    if finish == 'length':
+        logger.warning('UAIS reply was cut off at the output limit')
 
-    return response.choices[0].message.content or ''
+    return choice.message.content or ''
