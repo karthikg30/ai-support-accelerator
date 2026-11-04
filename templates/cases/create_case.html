@@ -396,8 +396,6 @@
         panelBody.scrollTop = panelBody.scrollHeight;
     }
 
-        addArticleLinks(data);
-        addSimilarCases(data);
         
     function flash(field) {
         if (!field) return;
@@ -466,6 +464,7 @@
                 thinking.textContent = data.reply;
                 addApplyButton(data);
                 addArticleLinks(data);
+                addSimilarCases(data);
             }
 
         } catch (err) {
