@@ -291,3 +291,33 @@ def filter_results(results):
     )
 
     return kept
+
+MAX_ARTICLES = config('KB_MAX_ARTICLES', default=2, cast=int)
+
+
+def top_articles(results):
+    """
+    Group filtered hits by article and rank each article by its best chunk.
+
+    filter_results() has already applied the distance margin, so this only
+    groups and caps. It adds no new threshold. The caller sends the FULL
+    text of these articles to the model, so a procedure is never answered
+    from fragments.
+
+    Logs codes and distances only, never content. Always logs.
+    """
+    best = {}
+    for r in results:
+        code = r['metadata'].get('article_code')
+        if code and (code not in best or r['distance'] < best[code]):
+            best[code] = r['distance']
+
+    ranked = sorted(best.items(), key=lambda kv: kv[1])
+    kept = [code for code, _ in ranked[:MAX_ARTICLES]]
+
+    logger.info(
+        'KB articles: kept %d of %d (max %d) — %s',
+        len(kept), len(ranked), MAX_ARTICLES,
+        ', '.join(f'{c} {d:.3f}' for c, d in ranked) or 'none',
+    )
+    return kept

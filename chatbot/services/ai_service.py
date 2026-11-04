@@ -204,6 +204,9 @@ names, URLs or procedures that do not appear in them.
 and state plainly what is missing.
 - Prefer the exact wording of the extracts over your own phrasing when \
 describing a procedure.
+- If an extract is a step-by-step procedure, list ALL of its steps in \
+order. Do not skip, merge or shorten steps, even if the question seems to \
+need only part of the procedure.
 
 KNOWLEDGE BASE EXTRACTS
 =======================
@@ -254,6 +257,27 @@ def _build_context(results):
     """
     return '\n\n---\n\n'.join(hit['document'] for hit in results)
 
+def _build_article_context(codes):
+    """Full text of the selected articles, in ranking order.
+
+    Chunks are used to FIND the article; the whole article is used to
+    ANSWER, so multi-step procedures reach the model complete.
+    """
+    from knowledgebase.models import KnowledgeArticle
+
+    articles = {
+        a.code: a for a in KnowledgeArticle.objects.filter(code__in=codes)
+    }
+    blocks = []
+    for code in codes:
+        a = articles.get(code)
+        if a:
+            blocks.append(
+                f'Article: {a.code} - {a.title}\n'
+                f'Category: {a.get_category_display()}\n\n'
+                f'{a.content}'
+            )
+    return '\n\n---\n\n'.join(blocks)
 
 def _chips_from_results(results):
     """Derive article and case chips from what retrieval actually returned.
@@ -304,18 +328,24 @@ def _uais_response(message, user=None):
     results = kb_index.search(message)
     grounded = kb_index.is_grounded(results)
 
+    context = None
     if grounded:
-        # Narrow to the hits that belong to the best match, so the prompt
-        # context and the citation chips describe the same small set of
-        # articles the answer was actually built from.
+        # Chunks find the article; the full article answers.
         results = kb_index.filter_results(results)
+        codes = kb_index.top_articles(results)
+
+        # Chips must describe exactly the articles in the prompt.
+        results = [
+            r for r in results
+            if r['metadata'].get('article_code') in codes
+        ]
+
+        context = _build_article_context(codes) or _build_context(results)
     else:
         results = []
         if STRICT_GROUNDING:
             logger.info('No grounded match; strict mode, skipping the model')
             return AIResponse(reply=NOT_FOUND_REPLY, engine='uais')
-
-    context = _build_context(results) if grounded else None
 
     try:
         raw = uais_client.call_llm(
