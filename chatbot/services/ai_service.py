@@ -200,13 +200,20 @@ Answer the agent's question using ONLY the knowledge base extracts below.
 Grounding rules:
 - Base your answer only on the extracts. Do not add steps, tools, system \
 names, URLs or procedures that do not appear in them.
-- If the extracts only partly answer the question, say what they do cover \
-and state plainly what is missing.
-- Prefer the exact wording of the extracts over your own phrasing when \
-describing a procedure.
 - If an extract is a step-by-step procedure, list ALL of its steps in \
 order. Do not skip, merge or shorten steps, even if the question seems to \
 need only part of the procedure.
+- Copy exact values from the extracts word for word: numbers and limits, \
+URLs, email addresses, email subjects, field names, field values, role \
+names and team names. You may shorten the sentence around a value, but \
+never replace a value with a vague phrase such as "the correct URL" or \
+"near the limit".
+- Prefer the exact wording of the extracts over your own phrasing when \
+describing a procedure.
+- If the extracts only partly answer the question, answer only the part \
+they cover, then say plainly which part is not covered in the knowledge \
+base. Do NOT complete the missing part from general knowledge, and do not \
+guess.
 
 KNOWLEDGE BASE EXTRACTS
 =======================
