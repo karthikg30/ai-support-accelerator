@@ -7,3 +7,10 @@ media/
 staticfiles/
 .vscode/
 chroma_db/
+# Database files and backups
+*.sqlite3
+
+# Temporary working files
+check_sections.py
+project_code.txt
+sections_report.txt
