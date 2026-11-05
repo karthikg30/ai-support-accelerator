@@ -79,6 +79,8 @@ def ask(request):
         suggested_request_type=result.suggested_request_type,
         source=source,
         engine=result.engine,
+        related_articles=result.related_articles,
+        similar_cases=result.similar_cases,
     )
 
     conversation.set_title_from(message)
