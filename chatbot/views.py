@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-
+from decouple import config
 from .models import ChatHistory, Conversation, PHIBlockEvent
 from .services import phi_guard
 from .services.ai_service import (
@@ -14,6 +14,9 @@ from .services.ai_service import (
     get_ai_response,
     rephrase_text,
 )
+
+HISTORY_DISPLAY_LIMIT = config('CHAT_HISTORY_DISPLAY', default=5, cast=int)
+
 
 @login_required
 @require_POST
@@ -146,7 +149,11 @@ def assistant(request):
             Conversation, pk=conversation_id, user=request.user
         )
 
-    history = Conversation.objects.filter(user=request.user)[:25]
+    history = (
+        Conversation.objects
+        .filter(user=request.user)
+        .order_by('-updated_at')[:HISTORY_DISPLAY_LIMIT]
+    )
 
     messages = []
     if conversation:
