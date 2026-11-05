@@ -52,6 +52,24 @@
                 {% for item in conversation_messages %}
                 <div class="chat-bubble chat-user">{{ item.message }}</div>
                 <div class="chat-bubble chat-ai">{{ item.response }}</div>
+
+                {% if item.related_articles %}
+                <div class="ai-articles">
+                    <div class="ai-articles-label">Related articles</div>
+                    {% for code in item.related_articles %}
+                    <a class="ai-article-chip" href="/kb/article/{{ code|urlencode }}/" target="_blank" rel="noopener noreferrer">{{ code }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if item.similar_cases %}
+                <div class="ai-articles">
+                    <div class="ai-articles-label">Similar past cases</div>
+                    {% for case in item.similar_cases %}
+                    <a class="ai-case-chip" href="{{ case.url }}" target="_blank" rel="noopener noreferrer" title="{{ case.label }}">{{ case.number }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
                 {% endfor %}
             {% else %}
                 <div class="ai-welcome">
