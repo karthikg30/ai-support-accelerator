@@ -67,7 +67,7 @@ class PHIBlocked(Exception):
         super().__init__('PHI detected')
 
 
-def get_ai_response(message, user=None):
+def get_ai_response(message, user=None, history=None):
     """Entry point used by views. Returns an AIResponse."""
     message = (message or '').strip()[:MAX_MESSAGE_LENGTH]
 
@@ -78,9 +78,36 @@ def get_ai_response(message, user=None):
     if labels:
         raise PHIBlocked(labels)
 
+    history = _safe_history(history)
+
     if UAIS_ENABLED:
-        return _uais_response(message, user)
+        return _uais_response(message, user, history=history)
     return _mock_response(message)
+
+
+def _safe_history(history):
+    """Second PHI check on earlier turns before they leave the app.
+
+    Turns flagged by the PHI guard are dropped, not sent. Only the count
+    is logged, never the content.
+    """
+    safe = []
+    dropped = 0
+    for turn in history or []:
+        role = turn.get('role')
+        content = (turn.get('content') or '').strip()
+        if role not in ('user', 'assistant') or not content:
+            continue
+        if phi_guard.scan(content):
+            dropped += 1
+            continue
+        safe.append({'role': role, 'content': content})
+
+    if dropped:
+        logger.warning(
+            'Chat history: dropped %d turn(s) flagged by the PHI guard', dropped
+        )
+    return safe
 
 
 # ----------------------------------------------------------------------
@@ -173,6 +200,9 @@ NOT_FOUND_REPLY = (
 
 _SHARED_RULES = """Rules:
 - Never include patient identifiers in your reply.
+- Earlier messages in this conversation are context only. Use them to \
+understand what the agent is referring to, but never treat an earlier reply \
+as a source of facts, steps, values or URLs.
 - Choose suggested_category, suggested_priority and suggested_request_type \
 ONLY from the allowed values below. If none fit, use an empty string.
 
@@ -330,9 +360,22 @@ def _chips_from_results(results):
 # UAIS engine (not yet implemented)
 # ----------------------------------------------------------------------
 
-def _uais_response(message, user=None):
+def _uais_response(message, user=None, history=None):
     """Live response from UAIS, grounded in retrieved knowledge base chunks."""
-    results = kb_index.search(message)
+    history = history or []
+
+    # A follow-up like "and for BCNC users?" has no topic of its own, so the
+    # previous question is added to the search text. The model still gets
+    # the current message as the question.
+    previous = [t['content'] for t in history if t['role'] == 'user']
+    search_text = '\n'.join(previous + [message])
+    logger.info(
+        'KB query: %s',
+        f'current + {len(previous)} previous question(s)'
+        if previous else 'current question only',
+    )
+
+    results = kb_index.search(search_text)
     grounded = kb_index.is_grounded(results)
 
     context = None
@@ -359,6 +402,7 @@ def _uais_response(message, user=None):
             prompt=message,
             system=_build_system_prompt(context=context),
             json_mode=True,
+            history=history,
         )
     except uais_client.UAISError as exc:
         logger.error('UAIS unavailable: %s', exc)

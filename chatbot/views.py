@@ -16,6 +16,18 @@ from .services.ai_service import (
 )
 
 HISTORY_DISPLAY_LIMIT = config('CHAT_HISTORY_DISPLAY', default=5, cast=int)
+HISTORY_TURNS = config('CHAT_HISTORY_TURNS', default=4, cast=int)
+HISTORY_REPLY_CHARS = config('CHAT_HISTORY_REPLY_CHARS', default=600, cast=int)
+
+
+def _build_history(conversation):
+    """Last N saved turns, oldest first, in the format ai_service expects."""
+    rows = list(conversation.messages.order_by('-created_at')[:HISTORY_TURNS])[::-1]
+    turns = []
+    for r in rows:
+        turns.append({'role': 'user', 'content': r.message or ''})
+        turns.append({'role': 'assistant', 'content': (r.response or '')[:HISTORY_REPLY_CHARS]})
+    return turns
 
 
 @login_required
@@ -51,8 +63,11 @@ def ask(request):
     if conversation is None:
         conversation = Conversation.objects.create(user=request.user)
 
+    # Previous turns of this conversation (read BEFORE saving the current one).
+    history = _build_history(conversation)
+
     try:
-        result = get_ai_response(message, user=request.user)
+        result = get_ai_response(message, user=request.user, history=history)
     except PHIBlocked as blocked:
         PHIBlockEvent.objects.create(
             user=request.user,
@@ -139,6 +154,7 @@ def rephrase(request):
     )
 
     return JsonResponse(result.to_dict())
+
 
 @login_required
 def assistant(request):

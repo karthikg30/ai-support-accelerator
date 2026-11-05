@@ -97,7 +97,8 @@ PATTERNS = [
     # 12. Certificate or licence numbers
     ('Certificate or licence number', re.compile(
         r'\b(?:licen[sc]e|certificate|NPI)\s*(?:number|no|#)?\s*[:#]?\s*'
-        r'[A-Z0-9][A-Z0-9-]{4,19}\b', re.IGNORECASE
+        r'(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19}\b', re.IGNORECASE
+
     ), 'high'),
 
     # 13. Vehicle identifiers
