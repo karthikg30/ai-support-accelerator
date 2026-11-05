@@ -65,6 +65,8 @@ class ChatHistory(models.Model):
     suggested_request_type = models.CharField(max_length=100, blank=True)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='panel')
     engine = models.CharField(max_length=20, default='mock')
+    related_articles = models.JSONField(default=list, blank=True)
+    similar_cases = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
