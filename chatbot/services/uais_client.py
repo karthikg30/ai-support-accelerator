@@ -32,6 +32,7 @@ API_VERSION = config('UAIS_API_VERSION', default='')
 DEPLOYMENT = config('UAIS_DEPLOYMENT', default='')
 PROJECT_ID = config('UAIS_PROJECT_ID', default='')
 TIMEOUT = config('UAIS_TIMEOUT', default=30, cast=int)
+UAIS_TEMPERATURE = config('UAIS_TEMPERATURE', default=0.2, cast=float)
 
 TOKEN_SAFETY_MARGIN = 60          # refresh this many seconds before expiry
 
@@ -128,16 +129,28 @@ def _get_client():
 # Public interface
 # ----------------------------------------------------------------------
 
-def call_llm(prompt, system=None, json_mode=False, temperature=0.2):
+def call_llm(prompt, system=None, json_mode=False, temperature=None, history=None):
     """Send a prompt to UAIS and return the raw text response.
 
     json_mode requires the word "json" to appear somewhere in the prompt,
     or the API rejects the request. The caller's system prompt must
     include it.
+
+    temperature defaults to UAIS_TEMPERATURE from .env.
+
+    history is an optional list of earlier turns, oldest first, each
+    {'role': 'user' | 'assistant', 'content': '...'}. They go between the
+    system prompt and the current message. Anything else is ignored.
     """
+    if temperature is None:
+        temperature = UAIS_TEMPERATURE
+
     messages = []
     if system:
         messages.append({'role': 'system', 'content': system})
+    for turn in history or []:
+        if turn.get('role') in ('user', 'assistant') and turn.get('content'):
+            messages.append({'role': turn['role'], 'content': turn['content']})
     messages.append({'role': 'user', 'content': prompt})
 
     payload = {
@@ -176,11 +189,14 @@ def call_llm(prompt, system=None, json_mode=False, temperature=0.2):
 
     usage = getattr(response, 'usage', None)
     logger.info(
-        'UAIS ok in %.2fs, prompt_tokens=%s completion_tokens=%s finish=%s',
+        'UAIS ok in %.2fs, prompt_tokens=%s completion_tokens=%s '
+        'finish=%s history_turns=%d temperature=%s',
         elapsed,
         getattr(usage, 'prompt_tokens', '?'),
         getattr(usage, 'completion_tokens', '?'),
         finish,
+        sum(1 for m in messages if m['role'] == 'user') - 1,
+        payload.get('temperature', 'omitted'),
     )
     if finish == 'length':
         logger.warning('UAIS reply was cut off at the output limit')
