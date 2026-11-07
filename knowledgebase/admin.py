@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import KnowledgeArticle, RelatedTicket
+from .models import KBCategory, KBProduct, KnowledgeArticle, RelatedTicket
 
 
 class RelatedTicketInline(admin.TabularInline):
@@ -64,3 +64,17 @@ class KnowledgeArticleAdmin(admin.ModelAdmin):
 class RelatedTicketAdmin(admin.ModelAdmin):
     list_display = ('number', 'article', 'label')
     search_fields = ('number', 'label')
+
+
+@admin.register(KBCategory)
+class KBCategoryAdmin(admin.ModelAdmin):
+    list_display = ('label', 'key', 'abbrev', 'icon', 'sort_order', 'active')
+    list_editable = ('sort_order', 'active')
+    search_fields = ('label', 'key')
+
+
+@admin.register(KBProduct)
+class KBProductAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'active')
+    list_editable = ('active',)
+    search_fields = ('code', 'name', 'aliases')

@@ -15,6 +15,8 @@ Nothing outside this file should need to change when it is swapped in.
 
 from decouple import config
 from . import phi_guard
+import json
+import re
 
 import json
 import logging
@@ -355,7 +357,59 @@ def _chips_from_results(results):
 
     return related_articles, similar_cases
 
+def _products_named(text):
+    """Product codes mentioned in the text, by code or alias (for example OPA)."""
+    from .product_registry import get_registry
 
+    lowered = (text or '').lower()
+    found = []
+    for code, data in get_registry().items():
+        for term in [code] + list(data['aliases']):
+            if re.search(r'\b' + re.escape(term.lower()) + r'\b', lowered):
+                found.append(code)
+                break
+    return found
+
+
+def _scope_products(message, history):
+    """Product named in this question, else the latest one named earlier in the chat."""
+    named = _products_named(message)
+    if named:
+        return named
+    for turn in reversed(history or []):
+        if turn['role'] == 'user':
+            named = _products_named(turn['content'])
+            if named:
+                return named
+    return []
+
+def _retrieval_filter(products=None):
+    """Chroma filter: keep retired products and categories out, and optionally
+    restrict the search to the products named in the question."""
+    try:
+        from knowledgebase.models import KBCategory, KBProduct
+
+        inactive_products = [
+            c.upper()
+            for c in KBProduct.objects.filter(active=False).values_list('code', flat=True)
+        ]
+        inactive_categories = list(
+            KBCategory.objects.filter(active=False).values_list('key', flat=True)
+        )
+    except Exception:
+        return None
+
+    clauses = []
+    if products:
+        clauses.append({'product_code': {'$in': [p.upper() for p in products]}})
+    if inactive_products:
+        clauses.append({'product_code': {'$nin': inactive_products}})
+    if inactive_categories:
+        clauses.append({'category': {'$nin': inactive_categories}})
+
+    if not clauses:
+        return None
+    return clauses[0] if len(clauses) == 1 else {'$and': clauses}
 # ----------------------------------------------------------------------
 # UAIS engine (not yet implemented)
 # ----------------------------------------------------------------------
@@ -375,7 +429,10 @@ def _uais_response(message, user=None, history=None):
         if previous else 'current question only',
     )
 
-    results = kb_index.search(search_text)
+    scope = _scope_products(message, history)
+    if scope:
+        logger.info('KB scope: product filter %s', ', '.join(scope))
+    results = kb_index.search(search_text, where=_retrieval_filter(scope))
     grounded = kb_index.is_grounded(results)
 
     context = None

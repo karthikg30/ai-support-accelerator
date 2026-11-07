@@ -9,7 +9,38 @@ from chatbot.services.product_registry import (
     get_product,
 )
 
-from .models import KnowledgeArticle
+from .models import KBCategory, KBProduct, KnowledgeArticle
+
+
+def _categories():
+    """Active categories as {key: {label, icon, blurb}}, in admin order.
+
+    Falls back to the built-in list if the KBCategory table is empty.
+    """
+    if not KBCategory.objects.exists():
+        return {
+            key: {
+                'label': label,
+                'icon': KnowledgeArticle.CATEGORY_META[key]['icon'],
+                'blurb': KnowledgeArticle.CATEGORY_META[key]['blurb'],
+            }
+            for key, label in KnowledgeArticle.CATEGORY_CHOICES
+        }
+    return {
+        row.key: {'label': row.label, 'icon': row.icon, 'blurb': row.blurb}
+        for row in KBCategory.objects.filter(active=True)
+    }
+
+
+def _active_products():
+    """Registry entries for active products, as {code: {name, aliases}}."""
+    registry = dict(PRODUCT_REGISTRY.items())
+    if not KBProduct.objects.exists():
+        return registry
+    inactive = set(
+        KBProduct.objects.filter(active=False).values_list('code', flat=True)
+    )
+    return {c: d for c, d in registry.items() if c not in inactive}
 
 
 @login_required
@@ -33,16 +64,16 @@ def kb_home(request):
         .annotate(n=Count('id'))
     )
 
-    categories = []
-    for key, label in KnowledgeArticle.CATEGORY_CHOICES:
-        meta = KnowledgeArticle.CATEGORY_META[key]
-        categories.append({
+    categories = [
+        {
             'key': key,
-            'label': label,
+            'label': meta['label'],
             'icon': meta['icon'],
             'blurb': meta['blurb'],
             'count': counts.get(key, 0),
-        })
+        }
+        for key, meta in _categories().items()
+    ]
 
     return render(request, 'knowledgebase/kb_home.html', {
         'categories': categories,
@@ -52,7 +83,7 @@ def kb_home(request):
 @login_required
 def kb_category(request, category):
     """Level 2: product tiles within a category."""
-    valid = dict(KnowledgeArticle.CATEGORY_CHOICES)
+    valid = _categories()
 
     if category not in valid:
         raise Http404('Unknown category')
@@ -76,14 +107,14 @@ def kb_category(request, category):
             'name': data['name'],
             'count': counts.get(code, 0),
         }
-        for code, data in sorted(PRODUCT_REGISTRY.items())
+        for code, data in sorted(_active_products().items())
     ]
 
-    meta = KnowledgeArticle.CATEGORY_META[category]
+    meta = valid[category]
 
     return render(request, 'knowledgebase/kb_category.html', {
         'category': category,
-        'label': valid[category],
+        'label': meta['label'],
         'icon': meta['icon'],
         'blurb': meta['blurb'],
         'products': products,
@@ -94,12 +125,12 @@ def kb_category(request, category):
 @login_required
 def kb_product(request, category, product_code):
     """Level 3: articles for one product within a category."""
-    valid = dict(KnowledgeArticle.CATEGORY_CHOICES)
+    valid = _categories()
     code = canonical_code(product_code)
 
     if category not in valid:
         raise Http404('Unknown category')
-    if not code:
+    if not code or code not in _active_products():
         raise Http404('Unknown product')
 
     articles = KnowledgeArticle.objects.filter(
@@ -107,12 +138,12 @@ def kb_product(request, category, product_code):
         product_code__iexact=code,
     ).order_by('code')
 
-    meta = KnowledgeArticle.CATEGORY_META[category]
+    meta = valid[category]
     product = get_product(code)
 
     return render(request, 'knowledgebase/kb_product.html', {
         'category': category,
-        'category_label': valid[category],
+        'category_label': meta['label'],
         'icon': meta['icon'],
         'product_code': code,
         'product_name': product['name'],

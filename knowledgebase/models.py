@@ -14,6 +14,21 @@ def product_choices():
         for code, data in sorted(PRODUCT_REGISTRY.items())
     ]
 
+_DEFAULT_CATEGORY_CHOICES = [
+    ('onboarding', 'Onboarding Documentation'),
+    ('user_management', 'User Management'),
+    ('product', 'Product Articles'),
+]
+
+
+def category_choices():
+    try:
+        rows = list(KBCategory.objects.values_list('key', 'label'))
+    except Exception:
+        rows = []
+    return rows or _DEFAULT_CATEGORY_CHOICES
+
+
 
 class KnowledgeArticle(models.Model):
     CATEGORY_CHOICES = [
@@ -44,7 +59,7 @@ class KnowledgeArticle(models.Model):
         help_text='Generated automatically from product and category.',
     )
     title = models.CharField(max_length=200)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    category = models.CharField(max_length=20, choices=category_choices)
     product_code = models.CharField(
         max_length=20,
         blank=True,
@@ -81,7 +96,12 @@ class KnowledgeArticle(models.Model):
         from chatbot.services.product_registry import canonical_code
 
         product = canonical_code(self.product_code) or 'GEN'
-        category = CATEGORY_ABBREV.get(self.category, 'GEN')
+        category_row = KBCategory.objects.filter(key=self.category).first()
+        category = (
+            category_row.abbrev
+            if category_row
+            else CATEGORY_ABBREV.get(self.category, 'GEN')
+        )
         prefix = f'{product}-{category}-'
 
         highest = 0
@@ -118,3 +138,118 @@ class RelatedTicket(models.Model):
 
     def __str__(self):
         return f'{self.number} ({self.article.code})'
+    
+
+
+class KBCategory(models.Model):
+    """A kind of article (User Management, Onboarding, ...). Editable in admin."""
+
+    key = models.SlugField(
+        max_length=20,
+        unique=True,
+        help_text='Short lowercase key, for example user_management. Do not change it once articles use it.',
+    )
+    label = models.CharField(max_length=100)
+    abbrev = models.CharField(
+        max_length=6,
+        unique=True,
+        help_text='Used in article codes, for example UM in CCC-UM-001.',
+    )
+    icon = models.CharField(max_length=40, default='bi-file-text')
+    blurb = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.label
+
+
+
+
+class KBCategory(models.Model):
+    """A kind of article (User Management, Onboarding, ...). Editable in admin."""
+
+    key = models.SlugField(
+        max_length=20,
+        unique=True,
+        help_text='Short lowercase key, for example user_management. Do not change it once articles use it.',
+    )
+    label = models.CharField(max_length=100)
+    abbrev = models.CharField(
+        max_length=6,
+        unique=True,
+        help_text='Used in article codes, for example UM in CCC-UM-001.',
+    )
+    icon = models.CharField(max_length=40, default='bi-file-text')
+    blurb = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.label
+
+
+class KBCategory(models.Model):
+    """A kind of article (User Management, Onboarding, ...). Editable in admin."""
+
+    key = models.SlugField(
+        max_length=20,
+        unique=True,
+        help_text='Short lowercase key, for example user_management. Do not change it once articles use it.',
+    )
+    label = models.CharField(max_length=100)
+    abbrev = models.CharField(
+        max_length=6,
+        unique=True,
+        help_text='Used in article codes, for example UM in CCC-UM-001.',
+    )
+    icon = models.CharField(max_length=40, default='bi-file-text')
+    blurb = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.label
+
+
+class KBProduct(models.Model):
+    """A product (OPA, OMA, CCC, ...). Editable in admin."""
+
+    code = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text='Product code, for example CCC. Do not change it once articles use it.',
+    )
+    name = models.CharField(max_length=200)
+    aliases = models.TextField(
+        blank=True,
+        help_text='Comma-separated shorthand names, for example: CCC, Crimson, Continuum of Care',
+    )
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = 'product'
+        verbose_name_plural = 'products'
+
+    def __str__(self):
+        return f'{self.code} - {self.name}'
+
+    @property
+    def alias_list(self):
+        return [a.strip() for a in self.aliases.split(',') if a.strip()]
