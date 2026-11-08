@@ -228,6 +228,48 @@
         }
     }
 
+    const HISTORY_LIMIT = 5;
+
+    function addHistoryItem(id, title) {
+        const list = document.querySelector('.history-list');
+        if (!list) return;
+
+        // remove the "No conversations yet" message
+        const empty = list.querySelector('.history-empty');
+        if (empty) empty.remove();
+
+        // clear the active state on the other items
+        list.querySelectorAll('.history-item.active').forEach(function (el) {
+            el.classList.remove('active');
+        });
+
+        const link = document.createElement('a');
+        link.className = 'history-item active';
+        link.href = "{% url 'assistant' %}?c=" + id;
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'history-item-title';
+        titleDiv.textContent = title.length > 40 ? title.slice(0, 40) + '…' : title;
+
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'history-item-date';
+        const now = new Date();
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        dateDiv.textContent =
+            String(now.getDate()).padStart(2, '0') + ' ' + months[now.getMonth()] + ', ' +
+            String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+        link.appendChild(titleDiv);
+        link.appendChild(dateDiv);
+        list.prepend(link);
+
+        // keep only the latest 5 in the panel
+        const items = list.querySelectorAll('.history-item');
+        for (let i = HISTORY_LIMIT; i < items.length; i++) {
+            items[i].remove();
+        }
+    }
+
     async function send(message) {
         if (busy) return;
         const text = (message || input.value).trim();
@@ -261,8 +303,12 @@
             const data = await response.json();
 
             if (data.conversation_id) {
+                const isNewConversation = !conversationId;
                 conversationId = data.conversation_id;
                 updateCreateLink();
+                if (isNewConversation && response.ok) {
+                    addHistoryItem(conversationId, text);
+                }
             }
 
             if (!response.ok) {
