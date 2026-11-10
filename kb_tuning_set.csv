@@ -1,0 +1,31 @@
+﻿id,group,prior_question,question,expected_outcome,expected_articles,notes
+1,clear,,Client sent a mail asking to add a new user to OPA. How do I create the user in OneLogin?,answer,OPA-UM-010,"Known good, about 0.24 to 0.27 in your logs"
+2,messy,,"need to add new person to OPA, client emailed, what are the steps",answer,OPA-UM-010,
+3,messy,,opa new user steps pls,answer,OPA-UM-010,
+4,clear,,How do I give data restrictions to an OPA user?,answer,OPA-UM-010|OPA-UM-008,"Two articles expected, tests the citation margin"
+5,messy,,"OPA user needs account level restriction, where do I set it",answer,OPA-UM-010|OPA-UM-008,Two articles expected
+6,clear,,How do I update license counts after creating an OPA user?,answer,OPA-UM-010,
+7,messy,,which sign in url do I send to a BCNC user in OPA,answer,OPA-UM-010,VERIFY: may also match the BCNC login article
+8,clear,,How do I change an OPA user's role to Consumer?,answer,OPA-UM-002,From your logs: OPA-UM-002 Role change to or from Consumer
+9,clear,,How do I create a user in OneLogin for OMA?,answer,OMA-UM-004,
+10,messy,,"OMA user not showing in OneLogin, how do I check",answer,OMA-UM-005,
+11,messy,,"OMA user locked out, OHID password reset",answer,OMA-UM-012,
+12,clear,,What do I check before closing an OMA case?,answer,OMA-UM-007,VERIFY article content
+13,clear,,How do I create a new user in CCC?,answer,CCC-UM-001,Only valid if the CCC articles are uploaded. Otherwise set to refuse
+14,clear,,CCC super admin gets an access error in OneLogin,answer,CCC-UM-003,Only valid if the CCC articles are uploaded. Otherwise set to refuse
+15,clear,,What final checks do I do before closing an OCC user request?,answer,OCC-UM-001,VERIFY article content
+16,follow-up,Client sent a mail asking to add a new user to OPA. How do I create the user in OneLogin?,Done. What's the next step after that?,answer,OPA-UM-010,"Vague follow-up, needs the prior question"
+17,follow-up,Client sent a mail asking to add a new user to OPA. How do I create the user in OneLogin?,Done. What about the license counts?,answer,OPA-UM-010,
+18,follow-up,Client sent a mail asking to add a new user to OPA. How do I create the user in OneLogin?,The client didn't ask for data restrictions. What next?,answer,OPA-UM-010,Failed before the multi-question fix
+19,no-product,,How do I create a user in OneLogin?,either,,"No product named. Excluded from the threshold maths, shows what a generic question does"
+20,off-topic,,What is the weather in Chennai today?,refuse,,
+21,off-topic,,Write a Python script to sort a list,refuse,,
+22,off-topic,,What is the leave policy for Optum employees?,refuse,,
+23,off-topic,,Who won the cricket match yesterday?,refuse,,
+24,hard-negative,,How do I reset my laptop password?,refuse,,Close to the OHID password reset wording
+25,hard-negative,,How do I create a new user in SAP?,refuse,,"Product not in the registry, but similar to the create-user steps"
+26,hard-negative,,How do I export a report to Excel in OPA?,refuse,,VERIFY there is no such article
+27,hard-negative,,Explain the billing engine architecture of Optum Charge Capture,refuse,,"Product named, no matching article"
+28,hard-negative,,How do I deactivate a user in SPC?,refuse,,"VERIFY there is no SPC article. If there is, set to answer"
+29,hard-negative,,What's the next step after that?,refuse,,No prior question and no topic. This scored 0.75 in your log
+30,hard-negative,,"Done, thanks",refuse,,No topic at all

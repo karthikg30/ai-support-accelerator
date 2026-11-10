@@ -13,13 +13,11 @@ confirmed with the platform team:
 Nothing outside this file should need to change when it is swapped in.
 """
 
-from decouple import config
-from . import phi_guard
-import json
-import re
-
 import json
 import logging
+import re
+
+from decouple import config
 
 from . import phi_guard, uais_client
 from . import kb_index
@@ -35,6 +33,7 @@ UAIS_ENABLED = config('UAIS_ENABLED', default=False, cast=bool)
 MAX_MESSAGE_LENGTH = 2000
 
 STRICT_GROUNDING = config('KB_STRICT_GROUNDING', default=False, cast=bool)
+
 
 class AIResponse:
     """Uniform response shape, whether mock or live."""
@@ -143,12 +142,13 @@ GUIDANCE = {
     ),
 }
 
+
 def _mock_response(message):
     """Fallback when UAIS is disabled.
 
     Uses the same retrieval the live path uses, but returns the matching
     passage raw instead of having a model rewrite it. No hardcoded
-    knowledge — the database is the only source.
+    knowledge - the database is the only source.
     """
     lowered = message.lower()
 
@@ -288,6 +288,7 @@ def _pick(value, allowed):
             return option
     return ''
 
+
 def _build_context(results):
     """Join retrieved chunks into the prompt context block.
 
@@ -295,6 +296,7 @@ def _build_context(results):
     so the model can see where every passage came from.
     """
     return '\n\n---\n\n'.join(hit['document'] for hit in results)
+
 
 def _build_article_context(codes):
     """Full text of the selected articles, in ranking order.
@@ -317,6 +319,7 @@ def _build_article_context(codes):
                 f'{a.content}'
             )
     return '\n\n---\n\n'.join(blocks)
+
 
 def _chips_from_results(results):
     """Derive article and case chips from what retrieval actually returned.
@@ -357,6 +360,7 @@ def _chips_from_results(results):
 
     return related_articles, similar_cases
 
+
 def _products_named(text):
     """Product codes mentioned in the text, by code or alias (for example OPA)."""
     from .product_registry import get_registry
@@ -382,6 +386,7 @@ def _scope_products(message, history):
             if named:
                 return named
     return []
+
 
 def _retrieval_filter(products=None):
     """Chroma filter: keep retired products and categories out, and optionally
@@ -410,9 +415,30 @@ def _retrieval_filter(products=None):
     if not clauses:
         return None
     return clauses[0] if len(clauses) == 1 else {'$and': clauses}
-# ----------------------------------------------------------------------
-# UAIS engine (not yet implemented)
-# ----------------------------------------------------------------------
+
+
+def _ask_product_reply():
+    """Fixed reply when no product is named. The list comes from the KBProduct table."""
+    try:
+        from knowledgebase.models import KBProduct
+        codes = list(
+            KBProduct.objects.filter(active=True)
+            .order_by('code')
+            .values_list('code', flat=True)
+        )
+    except Exception:
+        codes = []
+
+    if len(codes) > 1:
+        listing = ', '.join(codes[:-1]) + ' or ' + codes[-1]
+    else:
+        listing = codes[0] if codes else ''
+
+    reply = 'Which product is this for?'
+    if listing:
+        reply += f' ({listing})'
+    return reply + ' Please mention the product so I can give you the right steps.'
+
 
 def _uais_response(message, user=None, history=None):
     """Live response from UAIS, grounded in retrieved knowledge base chunks."""
@@ -429,9 +455,14 @@ def _uais_response(message, user=None, history=None):
         if previous else 'current question only',
     )
 
+    # Product is mandatory: no product in the question or recent history,
+    # so ask for it. No search and no LLM call, so zero tokens are spent.
     scope = _scope_products(message, history)
-    if scope:
-        logger.info('KB scope: product filter %s', ', '.join(scope))
+    if not scope:
+        logger.info('No product named in question or history; asking the user')
+        return AIResponse(reply=_ask_product_reply(), engine='uais')
+    logger.info('KB scope: product filter %s', ', '.join(scope))
+
     results = kb_index.search(search_text, where=_retrieval_filter(scope))
     grounded = kb_index.is_grounded(results)
 
@@ -494,13 +525,15 @@ def _uais_response(message, user=None, history=None):
         similar_cases=similar_cases,
         engine='uais',
     )
+
+
 # ----------------------------------------------------------------------
 # Rephrase
 # ----------------------------------------------------------------------
 
 MAX_REPHRASE_LENGTH = 4000
 
-# TODO(uais): PHI SAFETY — before enabling live rephrasing, confirm that
+# TODO(uais): PHI SAFETY - before enabling live rephrasing, confirm that
 # case descriptions may be sent to the model at all. Descriptions can
 # contain PHI. Required decisions:
 #   - Is the UAIS endpoint covered by a BAA / approved for PHI?
@@ -549,8 +582,6 @@ def rephrase_text(text, user=None):
 
 def _rephrase_mock(text):
     """Light, honest cleanup: spacing, capitalisation, punctuation."""
-    import re
-
     cleaned = re.sub(r'[ \t]+', ' ', text)
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
     cleaned = re.sub(r'\s+([,.;:!?])', r'\1', cleaned)

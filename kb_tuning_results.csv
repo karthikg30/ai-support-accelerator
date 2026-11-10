@@ -1,0 +1,31 @@
+﻿id,group,expected,scope,best_distance,top_article,articles_and_distances,question
+1,clear,answer,OPA,0.265,OPA-UM-010,OPA-UM-010 0.265,Client sent a mail asking to add a new user to OPA. How do I create the user in OneLogin?
+2,messy,answer,OPA,0.224,OPA-UM-010,OPA-UM-010 0.224,"need to add new person to OPA, client emailed, what are the steps"
+3,messy,answer,OPA,0.215,OPA-UM-010,OPA-UM-010 0.215; OPA-UM-014 0.242,opa new user steps pls
+4,clear,answer,OPA,0.120,OPA-UM-010,OPA-UM-010 0.120; OPA-UM-008 0.157; OPA-UM-007 0.214,How do I give data restrictions to an OPA user?
+5,messy,answer,OPA,0.175,OPA-UM-010,OPA-UM-010 0.175; OPA-UM-008 0.193; OPA-UM-007 0.261,"OPA user needs account level restriction, where do I set it"
+6,clear,answer,OPA,0.215,OPA-UM-010,OPA-UM-010 0.215; OPA-UM-002 0.254,How do I update license counts after creating an OPA user?
+7,messy,answer,OPA,0.196,OPA-UM-010,OPA-UM-010 0.196; OPA-UM-015 0.240; OPA-UM-013 0.252; OPA-UM-009 0.414,which sign in url do I send to a BCNC user in OPA
+8,clear,answer,OPA,0.261,OPA-UM-010,OPA-UM-010 0.261; OPA-UM-004 0.263; OPA-UM-002 0.285,How do I change an OPA user's role to Consumer?
+9,clear,answer,OMA,0.161,OMA-UM-005,OMA-UM-005 0.161; OMA-UM-004 0.193,How do I create a user in OneLogin for OMA?
+10,messy,answer,OMA,0.185,OMA-UM-005,OMA-UM-005 0.185; OMA-UM-007 0.269; OMA-UM-008 0.311; OMA-UM-004 0.314,"OMA user not showing in OneLogin, how do I check"
+11,messy,answer,OMA,0.225,OMA-UM-010,OMA-UM-010 0.225,"OMA user locked out, OHID password reset"
+12,clear,answer,OMA,0.244,OMA-UM-007,OMA-UM-007 0.244; OMA-UM-004 0.275; OMA-UM-001 0.379; OMA-UM-009 0.401,What do I check before closing an OMA case?
+13,clear,answer,CCC,0.211,CCC-UM-001,CCC-UM-001 0.211; CCC-UM-002 0.251,How do I create a new user in CCC?
+14,clear,answer,CCC,0.129,CCC-UM-003,CCC-UM-003 0.129,CCC super admin gets an access error in OneLogin
+15,clear,answer,OCC,0.353,OCC-UM-002,OCC-UM-002 0.353; OCC-UM-001 0.380,What final checks do I do before closing an OCC user request?
+16,follow-up,answer,OPA,0.268,OPA-UM-010,OPA-UM-010 0.268,Done. What's the next step after that?
+17,follow-up,answer,OPA,0.243,OPA-UM-010,OPA-UM-010 0.243,Done. What about the license counts?
+18,follow-up,answer,OPA,0.262,OPA-UM-010,OPA-UM-010 0.262,The client didn't ask for data restrictions. What next?
+19,no-product,either,,0.468,OCCP-UM-001,OCCP-UM-001 0.468; SPC-UM-005 0.498; OMA-UM-005 0.499; SPC-UM-006 0.505,How do I create a user in OneLogin?
+20,off-topic,refuse,,0.904,OMA-UM-003,OMA-UM-003 0.904; OMA-UM-005 0.928; OPA-UM-004 0.938,What is the weather in Chennai today?
+21,off-topic,refuse,,0.891,OMA-UM-011,OMA-UM-011 0.891; OCCP-UM-011 0.929,Write a Python script to sort a list
+22,off-topic,refuse,,0.557,OMA-UM-008,OMA-UM-008 0.557; OCCP-UM-013 0.588,What is the leave policy for Optum employees?
+23,off-topic,refuse,,0.926,OMA-UM-006,OMA-UM-006 0.926; OPA-UM-014 0.930; OCC-UM-002 0.934; OMA-UM-007 0.938,Who won the cricket match yesterday?
+24,hard-negative,refuse,,0.493,OCCP-UM-012,OCCP-UM-012 0.493; OMA-UM-010 0.541,How do I reset my laptop password?
+25,hard-negative,refuse,,0.477,OPA-UM-010,OPA-UM-010 0.477; SPC-UM-005 0.492; OMA-UM-004 0.494,How do I create a new user in SAP?
+26,hard-negative,refuse,OPA,0.373,OPA-UM-006,OPA-UM-006 0.373; OPA-UM-004 0.390,How do I export a report to Excel in OPA?
+27,hard-negative,refuse,OCC,0.471,OCC-UM-001,OCC-UM-001 0.471; OCC-UM-002 0.523,Explain the billing engine architecture of Optum Charge Capture
+28,hard-negative,refuse,SPC,0.322,SPC-UM-005,SPC-UM-005 0.322; SPC-UM-006 0.343; SPC-UM-002 0.359,How do I deactivate a user in SPC?
+29,hard-negative,refuse,,0.786,CCC-UM-001,CCC-UM-001 0.786; OMA-UM-004 0.787; OCCP-UM-001 0.792; OCCP-UM-006 0.793,What's the next step after that?
+30,hard-negative,refuse,,0.710,OCCP-UM-014,OCCP-UM-014 0.710; OCCP-UM-006 0.734; OMA-UM-012 0.738; OPA-UM-013 0.744,"Done, thanks"

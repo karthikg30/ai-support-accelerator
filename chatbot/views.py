@@ -181,8 +181,8 @@ def assistant(request):
         'conversation': conversation,
         'conversation_messages': messages,
         'history': history,
+        'history_limit': HISTORY_DISPLAY_LIMIT,
     })
-
 
 @login_required
 @require_POST
