@@ -13,6 +13,11 @@ class Conversation(models.Model):
         related_name='conversations',
     )
     title = models.CharField(max_length=120, blank=True)
+    # Rolling memory. Older turns are folded into `summary`; the product is
+    # kept separately so a summary can never drop it.
+    summary = models.TextField(blank=True, default='')
+    summary_through = models.PositiveBigIntegerField(default=0)
+    active_product = models.CharField(max_length=20, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

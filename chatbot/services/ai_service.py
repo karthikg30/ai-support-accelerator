@@ -34,6 +34,8 @@ MAX_MESSAGE_LENGTH = 2000
 
 STRICT_GROUNDING = config('KB_STRICT_GROUNDING', default=False, cast=bool)
 
+SUMMARY_PREFIX = 'Summary of the earlier part of this conversation (context only): '
+SEARCH_PREVIOUS_QUESTIONS = 4   # earlier questions added to the KB search text
 
 class AIResponse:
     """Uniform response shape, whether mock or live."""
@@ -440,6 +442,7 @@ def _ask_product_reply():
     return reply + ' Please mention the product so I can give you the right steps.'
 
 
+
 def _uais_response(message, user=None, history=None):
     """Live response from UAIS, grounded in retrieved knowledge base chunks."""
     history = history or []
@@ -447,7 +450,10 @@ def _uais_response(message, user=None, history=None):
     # A follow-up like "and for BCNC users?" has no topic of its own, so the
     # previous question is added to the search text. The model still gets
     # the current message as the question.
-    previous = [t['content'] for t in history if t['role'] == 'user']
+    previous = [
+        t['content'] for t in history
+        if t['role'] == 'user' and not t['content'].startswith(SUMMARY_PREFIX)
+    ][-SEARCH_PREVIOUS_QUESTIONS:]
     search_text = '\n'.join(previous + [message])
     logger.info(
         'KB query: %s',
