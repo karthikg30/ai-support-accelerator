@@ -148,7 +148,12 @@ def ask(request):
     history = _build_history(conversation)
 
     try:
-        result = get_ai_response(message, user=request.user, history=history)
+        result = get_ai_response(
+            message,
+            user=request.user,
+            history=history,
+            active_product=conversation.active_product,
+        )
     except PHIBlocked as blocked:
         PHIBlockEvent.objects.create(
             user=request.user,
@@ -179,10 +184,13 @@ def ask(request):
         similar_cases=result.similar_cases,
     )
 
+    if result.product:
+        conversation.active_product = result.product
+
     _update_summary(conversation)
 
     conversation.set_title_from(message)
-    conversation.save(update_fields=['updated_at'])
+    conversation.save(update_fields=['updated_at', 'active_product'])
 
     data = result.to_dict()
     data['conversation_id'] = conversation.pk

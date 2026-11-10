@@ -35,7 +35,7 @@ MAX_MESSAGE_LENGTH = 2000
 STRICT_GROUNDING = config('KB_STRICT_GROUNDING', default=False, cast=bool)
 
 SUMMARY_PREFIX = 'Summary of the earlier part of this conversation (context only): '
-SEARCH_PREVIOUS_QUESTIONS = 4   # earlier questions added to the KB search text
+SEARCH_PREVIOUS_QUESTIONS = 3   # earlier questions added to the KB search text
 
 class AIResponse:
     """Uniform response shape, whether mock or live."""
@@ -50,6 +50,7 @@ class AIResponse:
         self.related_articles = related_articles or []
         self.similar_cases = similar_cases or []
         self.engine = engine
+        self.product = ''   # product scope used for this answer; saved on the thread
 
     def to_dict(self):
         return {
@@ -70,7 +71,7 @@ class PHIBlocked(Exception):
         super().__init__('PHI detected')
 
 
-def get_ai_response(message, user=None, history=None):
+def get_ai_response(message, user=None, history=None, active_product=''):
     """Entry point used by views. Returns an AIResponse."""
     message = (message or '').strip()[:MAX_MESSAGE_LENGTH]
 
@@ -84,7 +85,14 @@ def get_ai_response(message, user=None, history=None):
     history = _safe_history(history)
 
     if UAIS_ENABLED:
-        return _uais_response(message, user, history=history)
+        result = _uais_response(
+            message, user, history=history, active_product=active_product
+        )
+        scope = _scope_products(message, history, active_product)
+        joined = ','.join(scope)
+        # active_product is a 20-character field; keep one whole code if it won't fit.
+        result.product = joined if len(joined) <= 20 else (scope[0] if scope else '')
+        return result
     return _mock_response(message)
 
 
@@ -377,13 +385,18 @@ def _products_named(text):
     return found
 
 
-def _scope_products(message, history):
-    """Product named in this question, else the latest one named earlier in the chat."""
+def _scope_products(message, history, active_product=''):
+    """Product named in this question, else the one saved on the thread,
+    else the latest one named in the recent history."""
     named = _products_named(message)
     if named:
         return named
+    saved = [p for p in (active_product or '').split(',') if p]
+    if saved:
+        return saved
+    # Threads started before active_product existed.
     for turn in reversed(history or []):
-        if turn['role'] == 'user':
+        if turn['role'] == 'user' and not turn['content'].startswith(SUMMARY_PREFIX):
             named = _products_named(turn['content'])
             if named:
                 return named
@@ -441,36 +454,105 @@ def _ask_product_reply():
         reply += f' ({listing})'
     return reply + ' Please mention the product so I can give you the right steps.'
 
+# Words that only steer the conversation ("next", "okay, step by step").
+# A message made up only of these has no topic of its own.
+_NAV_WORDS = {
+    'ok', 'okay', 'next', 'go', 'continue', 'proceed', 'yes', 'yeah', 'yep',
+    'sure', 'done', 'thanks', 'thank', 'you', 'please', 'lets', "let's", 'let',
+    'step', 'by', 'then', 'now', 'what', 'ahead', 'alright', 'confirmed',
+    'approved', 'completed', 'finished', 'got', 'it', 'and', 'the', 'me',
+    'show', 'give', 'move', 'on', 'to',
+    'steps', 'two', 'three', 'more', 'remaining', 'rest', 'last', 'final',
+    'all', 'again', 'repeat', 'previous', 'back', 'is',
+}
 
 
-def _uais_response(message, user=None, history=None):
+def _words(text):
+    t = (text or '').lower().replace('\u2019', "'")
+    return re.findall(r"[a-z0-9']+", t)
+
+
+def _is_navigation(text):
+    """True for 'next', 'okay next', 'what next', "okay, let's go step by step"."""
+    words = _words(text)
+    return bool(words) and all(w in _NAV_WORDS or w.isdigit() for w in words)
+
+
+def _is_product_only(text):
+    """True for a bare product answer such as 'OMA' to 'Which product?'."""
+    rest = [w for w in _words(text) if w not in _NAV_WORDS]
+    return len(rest) <= 1 and bool(_products_named(text))
+
+def _kb_search(message, previous, summary, scope):
+    """Search the KB. Returns (results, note).
+
+    Two vector searches run (local, no LLM tokens) and the one whose best
+    hit is closest wins:
+      - the question alone plus the product code, so a self-contained
+        question is not diluted by earlier topics
+      - the question plus earlier questions, so a vague follow-up keeps
+        its topic
+    A navigation message such as "next" has no topic of its own, so it is
+    searched with the earlier questions and the rolling summary only.
+    """
+    where = _retrieval_filter(scope)
+    hint = '' if _products_named(message) else ' '.join(scope)
+    with_hint = f'{message} {hint}'.strip()
+
+    candidates = []
+    if _is_navigation(message):
+        text = '\n'.join(previous + ([summary] if summary else []))
+        candidates.append(('navigation + context', f'{text} {hint}'.strip() or message))
+    else:
+        candidates.append(('question alone', with_hint))
+        if previous:
+            candidates.append((
+                f'question + {len(previous)} earlier',
+                '\n'.join(previous + [with_hint]),
+            ))
+
+    best = None
+    for label, text in candidates:
+        found = kb_index.search(text, where=where)
+        distance = found[0]['distance'] if found else None
+        logger.info(
+            'KB query [%s]: best distance %s',
+            label, 'none' if distance is None else f'{distance:.3f}',
+        )
+        if found and (best is None or distance < best[1]):
+            best = (found, distance, label)
+
+    if best is None:
+        return [], 'no results'
+    return best[0], best[2]
+
+def _uais_response(message, user=None, history=None, active_product=''):
     """Live response from UAIS, grounded in retrieved knowledge base chunks."""
     history = history or []
 
-    # A follow-up like "and for BCNC users?" has no topic of its own, so the
-    # previous question is added to the search text. The model still gets
-    # the current message as the question.
-    previous = [
-        t['content'] for t in history
-        if t['role'] == 'user' and not t['content'].startswith(SUMMARY_PREFIX)
-    ][-SEARCH_PREVIOUS_QUESTIONS:]
-    search_text = '\n'.join(previous + [message])
-    logger.info(
-        'KB query: %s',
-        f'current + {len(previous)} previous question(s)'
-        if previous else 'current question only',
-    )
-
-    # Product is mandatory: no product in the question or recent history,
-    # so ask for it. No search and no LLM call, so zero tokens are spent.
-    scope = _scope_products(message, history)
+    scope = _scope_products(message, history, active_product)
     if not scope:
         logger.info('No product named in question or history; asking the user')
         return AIResponse(reply=_ask_product_reply(), engine='uais')
     logger.info('KB scope: product filter %s', ', '.join(scope))
 
-    results = kb_index.search(search_text, where=_retrieval_filter(scope))
+    previous = [
+        t['content'] for t in history
+        if t['role'] == 'user'
+        and not t['content'].startswith(SUMMARY_PREFIX)
+        and not _is_navigation(t['content'])
+        and not _is_product_only(t['content'])
+    ][-SEARCH_PREVIOUS_QUESTIONS:]
+    summary = next(
+        (t['content'][len(SUMMARY_PREFIX):] for t in history
+         if t['role'] == 'user' and t['content'].startswith(SUMMARY_PREFIX)),
+        '',
+    )
+
+    results, query_note = _kb_search(message, previous, summary, scope)
+    logger.info('KB query used: %s', query_note)
     grounded = kb_index.is_grounded(results)
+    
 
     context = None
     if grounded:
@@ -555,6 +637,7 @@ class RephraseResult:
         self.note = note
         self.error = error
         self.engine = engine
+        self.product = ''   # product scope used for this answer; saved on the thread
 
     def to_dict(self):
         return {
