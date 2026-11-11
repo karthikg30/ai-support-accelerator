@@ -1,0 +1,2690 @@
+
+===== FILE: knowledgebase\models.py =====
+
+from django.db import models
+
+CATEGORY_ABBREV = {
+    'onboarding': 'ONB',
+    'user_management': 'UM',
+    'product': 'PRD',
+}
+
+
+def product_choices():
+    from chatbot.services.product_registry import PRODUCT_REGISTRY
+    return [
+        (code, f'{code} — {data["name"]}')
+        for code, data in sorted(PRODUCT_REGISTRY.items())
+    ]
+
+_DEFAULT_CATEGORY_CHOICES = [
+    ('onboarding', 'Onboarding Documentation'),
+    ('user_management', 'User Management'),
+    ('product', 'Product Articles'),
+]
+
+
+def category_choices():
+    try:
+        rows = list(KBCategory.objects.values_list('key', 'label'))
+    except Exception:
+        rows = []
+    return rows or _DEFAULT_CATEGORY_CHOICES
+
+
+
+class KnowledgeArticle(models.Model):
+    CATEGORY_CHOICES = [
+        ('onboarding', 'Onboarding Documentation'),
+        ('user_management', 'User Management'),
+        ('product', 'Product Articles'),
+    ]
+
+    CATEGORY_META = {
+        'onboarding': {
+            'icon': 'bi-box-arrow-in-right',
+            'blurb': 'Access requests, environment setup, and policy for new agents.',
+        },
+        'user_management': {
+            'icon': 'bi-person-gear',
+            'blurb': 'Login problems, password resets, and permission provisioning.',
+        },
+        'product': {
+            'icon': 'bi-hospital',
+            'blurb': 'Product overviews and healthcare domain reference.',
+        },
+    }
+
+    code = models.CharField(
+        max_length=30,
+        unique=True,
+        blank=True,
+        help_text='Generated automatically from product and category.',
+    )
+    title = models.CharField(max_length=200)
+    category = models.CharField(max_length=20, choices=category_choices)
+    product_code = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=product_choices,
+        help_text='Which product this article covers. Leave blank for general articles.',
+    )
+    summary = models.CharField(max_length=300, blank=True)
+    content = models.TextField(
+        help_text=(
+            'Use section headings so the article chunks well for AI retrieval. '
+            'Write each heading on its own line ending with a colon, for example '
+            '"Symptom:", "Cause:", "Resolution:". Steps may also be written as '
+            '"Step 1 - Do the thing". Without headings the article is split by '
+            'paragraph, which retrieves less precisely.'
+        ),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['code']
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = self._generate_code()
+        super().save(*args, **kwargs)
+
+    def _generate_code(self):
+        """Build a code like CCC-UM-001 from product and category.
+
+        Authors never type this. Once set it is never changed, because
+        chips and chat history reference it.
+        """
+        from chatbot.services.product_registry import canonical_code
+
+        product = canonical_code(self.product_code) or 'GEN'
+        category_row = KBCategory.objects.filter(key=self.category).first()
+        category = (
+            category_row.abbrev
+            if category_row
+            else CATEGORY_ABBREV.get(self.category, 'GEN')
+        )
+        prefix = f'{product}-{category}-'
+
+        highest = 0
+        for existing in KnowledgeArticle.objects.filter(code__startswith=prefix):
+            try:
+                highest = max(highest, int(existing.code.rsplit('-', 1)[-1]))
+            except (ValueError, IndexError):
+                continue
+
+        return f'{prefix}{highest + 1:03d}'
+
+    def __str__(self):
+        return f'{self.code} - {self.title}'
+
+    @property
+    def icon(self):
+        return self.CATEGORY_META.get(self.category, {}).get('icon', 'bi-file-text')
+
+
+class RelatedTicket(models.Model):
+    """A past ticket linked from an article. Shown as a chip in AI responses."""
+
+    article = models.ForeignKey(
+        KnowledgeArticle,
+        on_delete=models.CASCADE,
+        related_name='tickets',
+    )
+    number = models.CharField(max_length=50)
+    url = models.URLField()
+    label = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f'{self.number} ({self.article.code})'
+    
+
+
+class KBCategory(models.Model):
+    """A kind of article (User Management, Onboarding, ...). Editable in admin."""
+
+    key = models.SlugField(
+        max_length=20,
+        unique=True,
+        help_text='Short lowercase key, for example user_management. Do not change it once articles use it.',
+    )
+    label = models.CharField(max_length=100)
+    abbrev = models.CharField(
+        max_length=6,
+        unique=True,
+        help_text='Used in article codes, for example UM in CCC-UM-001.',
+    )
+    icon = models.CharField(max_length=40, default='bi-file-text')
+    blurb = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.label
+
+
+
+
+class KBCategory(models.Model):
+    """A kind of article (User Management, Onboarding, ...). Editable in admin."""
+
+    key = models.SlugField(
+        max_length=20,
+        unique=True,
+        help_text='Short lowercase key, for example user_management. Do not change it once articles use it.',
+    )
+    label = models.CharField(max_length=100)
+    abbrev = models.CharField(
+        max_length=6,
+        unique=True,
+        help_text='Used in article codes, for example UM in CCC-UM-001.',
+    )
+    icon = models.CharField(max_length=40, default='bi-file-text')
+    blurb = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.label
+
+
+class KBCategory(models.Model):
+    """A kind of article (User Management, Onboarding, ...). Editable in admin."""
+
+    key = models.SlugField(
+        max_length=20,
+        unique=True,
+        help_text='Short lowercase key, for example user_management. Do not change it once articles use it.',
+    )
+    label = models.CharField(max_length=100)
+    abbrev = models.CharField(
+        max_length=6,
+        unique=True,
+        help_text='Used in article codes, for example UM in CCC-UM-001.',
+    )
+    icon = models.CharField(max_length=40, default='bi-file-text')
+    blurb = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def __str__(self):
+        return self.label
+
+
+class KBProduct(models.Model):
+    """A product (OPA, OMA, CCC, ...). Editable in admin."""
+
+    code = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text='Product code, for example CCC. Do not change it once articles use it.',
+    )
+    name = models.CharField(max_length=200)
+    aliases = models.TextField(
+        blank=True,
+        help_text='Comma-separated shorthand names, for example: CCC, Crimson, Continuum of Care',
+    )
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = 'product'
+        verbose_name_plural = 'products'
+
+    def __str__(self):
+        return f'{self.code} - {self.name}'
+
+    @property
+    def alias_list(self):
+        return [a.strip() for a in self.aliases.split(',') if a.strip()]
+
+===== FILE: knowledgebase\admin.py =====
+
+from django.contrib import admin
+
+from .models import KBCategory, KBProduct, KnowledgeArticle, RelatedTicket
+
+
+class RelatedTicketInline(admin.TabularInline):
+    model = RelatedTicket
+    extra = 1
+    fields = ('number', 'url', 'label')
+
+
+@admin.register(KnowledgeArticle)
+class KnowledgeArticleAdmin(admin.ModelAdmin):
+    list_display = ('code', 'title', 'category', 'product_code', 'updated_at')
+    list_filter = ('category', 'product_code')
+    search_fields = ('code', 'title', 'content')
+    inlines = [RelatedTicketInline]
+    actions = ['reindex_selected']
+
+    def get_fieldsets(self, request, obj=None):
+        classification = ('Classification', {
+            'fields': ('category', 'product_code'),
+            'description': (
+                'Category and product decide where this article appears, '
+                'and are used to filter AI retrieval.'
+            ),
+        })
+        content = ('Content', {'fields': ('content',)})
+
+        if obj is None:
+            return (
+                (None, {
+                    'fields': ('title', 'summary'),
+                    'description': 'The article code is generated on save.',
+                }),
+                classification,
+                content,
+            )
+
+        return (
+            (None, {'fields': ('code', 'title', 'summary')}),
+            classification,
+            content,
+        )
+
+    def get_readonly_fields(self, request, obj=None):
+        return ('code',) if obj else ()
+
+    @admin.action(description='Rebuild search index for selected articles')
+    def reindex_selected(self, request, queryset):
+        from chatbot.services import kb_index
+
+        total = 0
+        for article in queryset:
+            total += kb_index.index_article(article)
+
+        self.message_user(
+            request,
+            f'Reindexed {queryset.count()} articles, {total} chunks.',
+        )
+
+
+@admin.register(RelatedTicket)
+class RelatedTicketAdmin(admin.ModelAdmin):
+    list_display = ('number', 'article', 'label')
+    search_fields = ('number', 'label')
+
+
+@admin.register(KBCategory)
+class KBCategoryAdmin(admin.ModelAdmin):
+    list_display = ('label', 'key', 'abbrev', 'icon', 'sort_order', 'active')
+    list_editable = ('sort_order', 'active')
+    search_fields = ('label', 'key')
+
+
+@admin.register(KBProduct)
+class KBProductAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'active')
+    list_editable = ('active',)
+    search_fields = ('code', 'name', 'aliases')
+
+===== FILE: knowledgebase\apps.py =====
+
+from django.apps import AppConfig
+
+
+class KnowledgebaseConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'knowledgebase'
+
+    def ready(self):
+        from . import signals  # noqa: F401
+
+===== FILE: knowledgebase\signals.py =====
+
+"""Keep the vector index in step with article edits."""
+
+import logging
+
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+
+from .models import KnowledgeArticle
+
+logger = logging.getLogger(__name__)
+
+
+@receiver(post_save, sender=KnowledgeArticle)
+def reindex_on_save(sender, instance, **kwargs):
+    """Re-chunk and re-embed after an edit.
+
+    Failures are logged, never raised — a broken index must not stop
+    someone saving an article.
+    """
+    from chatbot.services import kb_index
+
+    try:
+        chunks = kb_index.index_article(instance)
+        logger.info('Reindexed %s: %d chunks', instance.code, chunks)
+    except Exception as exc:
+        logger.error('Could not reindex %s: %s', instance.code, exc)
+
+
+@receiver(post_delete, sender=KnowledgeArticle)
+def remove_from_index(sender, instance, **kwargs):
+    from chatbot.services import kb_index
+
+    try:
+        kb_index.get_collection().delete(where={'article_code': instance.code})
+        logger.info('Removed %s from index', instance.code)
+    except Exception as exc:
+        logger.error('Could not remove %s from index: %s', instance.code, exc)
+
+===== FILE: knowledgebase\management\commands\index_kb.py =====
+
+from django.core.management.base import BaseCommand
+
+from chatbot.services import kb_index
+from knowledgebase.models import KnowledgeArticle
+
+
+class Command(BaseCommand):
+    help = 'Build the knowledge base vector index from KnowledgeArticle rows.'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--code',
+            help='Index only this article code, e.g. KB1016',
+        )
+        parser.add_argument(
+            '--rebuild',
+            action='store_true',
+            help='Clear the whole index before building',
+        )
+
+    def handle(self, *args, **options):
+        if options['rebuild']:
+            kb_index.clear_index()
+            self.stdout.write('Index cleared.')
+
+        queryset = KnowledgeArticle.objects.all()
+        if options['code']:
+            queryset = queryset.filter(code__iexact=options['code'])
+
+        if not queryset.exists():
+            self.stdout.write(self.style.WARNING('No articles matched.'))
+            return
+
+        total_chunks = 0
+        for article in queryset:
+            chunks = kb_index.index_article(article)
+            total_chunks += chunks
+            self.stdout.write(f'  {article.code}: {chunks} chunks')
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Indexed {queryset.count()} articles, {total_chunks} chunks.'
+        ))
+
+===== FILE: chatbot\models.py =====
+
+from django.db import models
+
+# Create your models here.
+from django.conf import settings
+from django.db import models
+
+class Conversation(models.Model):
+    """A single chat thread between an agent and the assistant."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='conversations',
+    )
+    title = models.CharField(max_length=120, blank=True)
+    # Rolling memory. Older turns are folded into `summary`; the product is
+    # kept separately so a summary can never drop it.
+    summary = models.TextField(blank=True, default='')
+    summary_through = models.PositiveBigIntegerField(default=0)
+    active_product = models.CharField(max_length=20, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.title or f"Conversation {self.pk}"
+
+    def display_title(self):
+        if self.title:
+            return self.title
+        first = self.messages.order_by('created_at').first()
+        if first:
+            return first.message[:60]
+        return 'New conversation'
+
+    def set_title_from(self, message):
+        """Title the thread from its first message."""
+        if not self.title and message:
+            self.title = message[:120]
+            self.save(update_fields=['title', 'updated_at'])
+
+class ChatHistory(models.Model):
+    """One question/answer exchange with the AI assistant."""
+
+    SOURCE_CHOICES = [
+        ('panel', 'Create Case panel'),
+        ('page', 'AI Assistant page'),
+        ('assistant', 'Assistant landing page'),
+        ('rephrase', 'Description rephrase'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='chat_history',
+    )
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        null=True,
+        blank=True,
+    )    
+    message = models.TextField()
+    response = models.TextField()
+    suggested_category = models.CharField(max_length=100, blank=True)
+    suggested_priority = models.CharField(max_length=20, blank=True)
+    suggested_request_type = models.CharField(max_length=100, blank=True)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='panel')
+    engine = models.CharField(max_length=20, default='mock')
+    related_articles = models.JSONField(default=list, blank=True)
+    similar_cases = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Chat history'
+
+    def __str__(self):
+        return f"{self.user.username}: {self.message[:50]}"
+
+class PHIBlockEvent(models.Model):
+    """Records that a PHI guardrail fired. Deliberately stores no content."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='phi_blocks',
+    )
+    source = models.CharField(max_length=20)
+    detected_types = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} — {self.source} — {self.detected_types}"
+
+===== FILE: chatbot\urls.py =====
+
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('', views.assistant, name='assistant'),
+    path('new/', views.new_conversation, name='new_conversation'),
+    path('ask/', views.ask, name='chatbot_ask'),
+    path('rephrase/', views.rephrase, name='chatbot_rephrase'),
+]
+
+===== FILE: chatbot\views.py =====
+
+import json
+
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+from decouple import config
+from .models import ChatHistory, Conversation, PHIBlockEvent
+from .services import phi_guard
+from .services.ai_service import (
+    MAX_MESSAGE_LENGTH,
+    MAX_REPHRASE_LENGTH,
+    SUMMARY_PREFIX,
+    PHIBlocked,
+    get_ai_response,
+    rephrase_text,
+    
+)
+
+HISTORY_DISPLAY_LIMIT = config('CHAT_HISTORY_DISPLAY', default=5, cast=int)
+HISTORY_TURNS = config('CHAT_HISTORY_TURNS', default=4, cast=int)
+HISTORY_REPLY_CHARS = config('CHAT_HISTORY_REPLY_CHARS', default=600, cast=int)
+
+
+def _build_history(conversation):
+    """Last N saved turns, oldest first, in the format ai_service expects."""
+    rows = list(conversation.messages.order_by('-created_at')[:HISTORY_TURNS])[::-1]
+    turns = []
+    if conversation.summary:
+        turns.append({
+            'role': 'user',
+            'content': SUMMARY_PREFIX + conversation.summary,
+        })
+        turns.append({'role': 'assistant', 'content': 'Understood.'})
+    for r in rows:
+        turns.append({'role': 'user', 'content': r.message or ''})
+        turns.append({'role': 'assistant', 'content': (r.response or '')[:HISTORY_REPLY_CHARS]})
+    return turns
+
+import logging
+import os
+
+# Adjust this import to match how views.py already imports call_llm / UAISError.
+from .services.uais_client import call_llm, UAISError
+
+logger = logging.getLogger(__name__)
+
+SUMMARY_WINDOW = HISTORY_TURNS   # turns kept verbatim; must match CHAT_HISTORY_TURNS (step 3)
+SUMMARY_MAX_CHARS = int(os.environ.get('CHAT_SUMMARY_CHARS', 800))
+
+SUMMARY_SYSTEM = (
+    "Merge the EXISTING SUMMARY with the NEW TURNS into one updated summary. "
+    "Record conversation state only, not KB procedure text, because that is "
+    "retrieved fresh every turn. Keep: the product, whether the user is external "
+    "or internal, the task, the step reached (for example 'Steps 1-2 of 7 done'), "
+    "decisions or exceptions the user mentioned, the user's stated preferences "
+    "(for example one step at a time), and open questions. "
+    "Write in the third person. Drop greetings and repeated text. "
+    "Plain text only, no bullets, no markdown. "
+    f"Aim for about {SUMMARY_MAX_CHARS - 100} characters and never exceed {SUMMARY_MAX_CHARS}."
+)
+
+
+def _cap_at_sentence(text, limit):
+    """Trim to limit, ending at a full sentence if possible, else a full word."""
+    text = (text or '').strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    end = cut.rfind('.')
+    if end > limit * 0.5:
+        return cut[:end + 1]
+    return cut.rsplit(' ', 1)[0]
+
+
+def _update_summary(conversation):
+    """Fold turns that have fallen out of the history window into the summary.
+
+    Never raises: if the LLM call fails, the chat reply is unaffected and
+    the same turns are retried on the next message.
+    """
+    rows = list(
+        ChatHistory.objects.filter(conversation=conversation).order_by('id')
+    )
+    if len(rows) <= SUMMARY_WINDOW:
+        return
+
+    already = conversation.summary_through or 0
+    to_fold = [r for r in rows[:-SUMMARY_WINDOW] if r.id > already]
+    if not to_fold:
+        return
+
+    turns_text = '\n\n'.join(
+        f"User: {r.message}\nAssistant: {(r.response or '')[:600]}"
+        for r in to_fold
+    )
+    prompt = (
+        f"EXISTING SUMMARY:\n{conversation.summary or '(none)'}\n\n"
+        f"NEW TURNS:\n{turns_text}\n\n"
+        "Write the updated summary."
+    )
+
+    try:
+        text = call_llm(prompt, system=SUMMARY_SYSTEM)
+    except UAISError as exc:
+        logger.warning('Summary update skipped: %s', exc)
+        return
+
+    conversation.summary = _cap_at_sentence(text, SUMMARY_MAX_CHARS)
+    conversation.summary_through = to_fold[-1].id
+    conversation.save(update_fields=['summary', 'summary_through'])
+
+
+@login_required
+@require_POST
+def ask(request):
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid request format.'}, status=400)
+
+    message = (payload.get('message') or '').strip()
+    source = payload.get('source', 'panel')
+    conversation_id = payload.get('conversation_id')
+
+    if not message:
+        return JsonResponse({'error': 'Message cannot be empty.'}, status=400)
+
+    if len(message) > MAX_MESSAGE_LENGTH:
+        return JsonResponse(
+            {'error': f'Message is too long (limit {MAX_MESSAGE_LENGTH} characters).'},
+            status=400,
+        )
+
+    if source not in ('panel', 'page', 'assistant'):
+        source = 'panel'
+
+    # Resolve or start the thread — ownership enforced.
+    conversation = None
+    if conversation_id:
+        conversation = Conversation.objects.filter(
+            pk=conversation_id, user=request.user
+        ).first()
+    if conversation is None:
+        conversation = Conversation.objects.create(user=request.user)
+
+    # Previous turns of this conversation (read BEFORE saving the current one).
+    history = _build_history(conversation)
+
+    try:
+        result = get_ai_response(
+            message,
+            user=request.user,
+            history=history,
+            active_product=conversation.active_product,
+        )
+    except PHIBlocked as blocked:
+        PHIBlockEvent.objects.create(
+            user=request.user,
+            source=source,
+            detected_types=', '.join(blocked.labels),
+        )
+        return JsonResponse({
+            'error': (
+                'This message appears to contain PHI '
+                f'({phi_guard.describe(blocked.labels)}). '
+                'The assistant cannot process patient information. '
+                'Please remove it and describe the issue in general terms.'
+            ),
+            'conversation_id': conversation.pk,
+        }, status=400)
+
+    ChatHistory.objects.create(
+        user=request.user,
+        conversation=conversation,
+        message=message,
+        response=result.reply,
+        suggested_category=result.suggested_category,
+        suggested_priority=result.suggested_priority,
+        suggested_request_type=result.suggested_request_type,
+        source=source,
+        engine=result.engine,
+        related_articles=result.related_articles,
+        similar_cases=result.similar_cases,
+    )
+
+    if result.product:
+        conversation.active_product = result.product
+
+    _update_summary(conversation)
+
+    conversation.set_title_from(message)
+    conversation.save(update_fields=['updated_at', 'active_product'])
+
+    data = result.to_dict()
+    data['conversation_id'] = conversation.pk
+    return JsonResponse(data)
+
+
+@login_required
+@require_POST
+def rephrase(request):
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid request format.'}, status=400)
+
+    text = (payload.get('text') or '').strip()
+
+    if not text:
+        return JsonResponse({'error': 'Nothing to rephrase.'}, status=400)
+
+    if len(text) > MAX_REPHRASE_LENGTH:
+        return JsonResponse(
+            {'error': f'Text is too long (limit {MAX_REPHRASE_LENGTH} characters).'},
+            status=400,
+        )
+
+    try:
+        result = rephrase_text(text, user=request.user)
+    except PHIBlocked as blocked:
+        PHIBlockEvent.objects.create(
+            user=request.user,
+            source='rephrase',
+            detected_types=', '.join(blocked.labels),
+        )
+        return JsonResponse({
+            'error': (
+                'The description appears to contain PHI '
+                f'({phi_guard.describe(blocked.labels)}). '
+                'Move patient information into the PHI Information field, '
+                'then rephrase again.'
+            )
+        }, status=400)
+
+    if not result.success:
+        return JsonResponse({'error': result.error}, status=400)
+
+    ChatHistory.objects.create(
+        user=request.user,
+        message=text,
+        response=result.text,
+        source='rephrase',
+        engine=result.engine,
+    )
+
+    return JsonResponse(result.to_dict())
+
+
+@login_required
+def assistant(request):
+    """AI-first landing page: chat with a conversation history rail."""
+    conversation = None
+    conversation_id = request.GET.get('c')
+
+    if conversation_id:
+        conversation = get_object_or_404(
+            Conversation, pk=conversation_id, user=request.user
+        )
+
+    history = (
+        Conversation.objects
+        .filter(user=request.user)
+        .order_by('-updated_at')[:HISTORY_DISPLAY_LIMIT]
+    )
+
+    messages = []
+    if conversation:
+        messages = conversation.messages.order_by('created_at')
+
+    return render(request, 'chatbot/assistant.html', {
+        'conversation': conversation,
+        'conversation_messages': messages,
+        'history': history,
+        'history_limit': HISTORY_DISPLAY_LIMIT,
+    })
+
+@login_required
+@require_POST
+def new_conversation(request):
+    return redirect('assistant')
+
+===== FILE: chatbot\services\kb_index.py =====
+
+"""
+Knowledge base vector index.
+
+Chunks articles on their section headings, prepends a context header so
+each chunk is self-describing, and stores them in a persistent Chroma
+collection.
+
+Django is the source of truth. This index is derived data, rebuilt with
+`python manage.py index_kb`. Never edit it directly.
+"""
+
+import logging
+import re
+import threading
+
+import chromadb
+from decouple import config
+from django.conf import settings
+
+from .product_registry import get_product
+
+logger = logging.getLogger(__name__)
+
+INDEX_PATH = config('KB_INDEX_PATH', default='chroma_db')
+GROUNDING_THRESHOLD = config('KB_GROUNDING_THRESHOLD', default=0.60, cast=float)
+DEFAULT_RESULTS = config('KB_RESULTS', default=4, cast=int)
+
+COLLECTION_NAME = 'knowledge_base'
+
+# A section heading is either "Something:" on its own line, or "Step 3 - ..."
+SECTION_RE = re.compile(
+    r'^(?P<heading>(?:Step\s+\d+[^\n]{0,80})|(?:[A-Z][^:\n]{2,70}:))\s*$',
+    re.MULTILINE,
+)
+
+_client = None
+_collection = None
+_lock = threading.Lock()
+
+
+# ----------------------------------------------------------------------
+# Collection
+# ----------------------------------------------------------------------
+
+def get_collection():
+    """Persistent Chroma collection, created on first use."""
+    global _client, _collection
+
+    if _collection is not None:
+        return _collection
+
+    with _lock:
+        if _collection is None:
+            path = str(settings.BASE_DIR / INDEX_PATH)
+            _client = chromadb.PersistentClient(path=path)
+            _collection = _client.get_or_create_collection(
+                name=COLLECTION_NAME,
+                metadata={'hnsw:space': 'cosine'},
+            )
+            logger.info('KB index ready at %s', path)
+
+    return _collection
+
+
+# ----------------------------------------------------------------------
+# Chunking
+# ----------------------------------------------------------------------
+
+def split_sections(content):
+    """Return a list of (heading, body) pairs.
+
+    Splits on section headings where the article has them, and falls back
+    to paragraph grouping where it does not.
+    """
+    content = (content or '').strip()
+    if not content:
+        return []
+
+    matches = list(SECTION_RE.finditer(content))
+
+    if len(matches) < 2:
+        return _paragraph_chunks(content)
+
+    sections = []
+
+    preamble = content[:matches[0].start()].strip()
+    if preamble:
+        sections.append(('Overview', preamble))
+
+    for i, match in enumerate(matches):
+        heading = match.group('heading').rstrip(':').strip()
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        body = content[start:end].strip()
+        if body:
+            sections.append((heading, body))
+
+    return sections
+
+
+def _paragraph_chunks(content, target_chars=800):
+    """Group paragraphs into chunks of roughly target_chars."""
+    paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+
+    chunks = []
+    current = []
+    size = 0
+
+    for paragraph in paragraphs:
+        if size + len(paragraph) > target_chars and current:
+            chunks.append(('Section', '\n\n'.join(current)))
+            current, size = [], 0
+        current.append(paragraph)
+        size += len(paragraph)
+
+    if current:
+        chunks.append(('Section', '\n\n'.join(current)))
+
+    return chunks
+
+
+def build_header(product, article, section):
+    """Context header prepended to every chunk before embedding.
+
+    This is what makes a chunk self-describing, and what puts the product
+    shorthands into the embedded text so "ECC" matches.
+    """
+    lines = []
+
+    if product['name']:
+        aliases = ', '.join(product['aliases'])
+        lines.append(f"Product: {product['name']} ({aliases})")
+
+    lines.append(f"Category: {article.get_category_display()}")
+    lines.append(f"Article: {article.code} - {article.title}")
+    lines.append(f"Section: {section}")
+
+    return '\n'.join(lines)
+
+
+# ----------------------------------------------------------------------
+# Indexing
+# ----------------------------------------------------------------------
+
+def index_article(article):
+    """Re-index a single article. Returns the number of chunks written."""
+    collection = get_collection()
+    product = get_product(article.product_code)
+
+    # Clear existing chunks first — an edited article may have fewer
+    # sections, and orphans would keep being retrieved.
+    try:
+        collection.delete(where={'article_code': article.code})
+    except Exception as exc:
+        logger.warning('Could not clear chunks for %s: %s', article.code, exc)
+
+    sections = split_sections(article.content)
+    if not sections:
+        return 0
+
+    ids, documents, metadatas = [], [], []
+
+    for i, (heading, body) in enumerate(sections):
+        header = build_header(product, article, heading)
+        ids.append(f'{article.code}-{i:03d}')
+        documents.append(f'{header}\n\n{body}')
+        metadatas.append({
+            'article_code': article.code,
+            'article_title': article.title,
+            'product_code': (article.product_code or '').upper(),
+            'category': article.category,
+            'section': heading,
+        })
+
+    collection.add(ids=ids, documents=documents, metadatas=metadatas)
+    return len(ids)
+
+
+def clear_index():
+    """Drop the whole collection. Used by index_kb --rebuild."""
+    global _collection
+
+    collection = get_collection()
+    existing = collection.get(include=[])
+    if existing and existing.get('ids'):
+        collection.delete(ids=existing['ids'])
+
+    logger.info('KB index cleared')
+
+
+# ----------------------------------------------------------------------
+# Search
+# ----------------------------------------------------------------------
+
+def expand_query(text):
+    """Append full product names when a shorthand appears in the query.
+
+    "ECC login issue" becomes "ECC login issue Enterprise Computer-Assisted
+    Coding", so the query embedding lands near chunks whose header names
+    that product.
+    """
+    lowered = (text or '').lower()
+    additions = []
+
+    from .product_registry import PRODUCT_REGISTRY
+
+    for code, product in PRODUCT_REGISTRY.items():
+        candidates = [code] + product['aliases']
+        for candidate in candidates:
+            if re.search(r'\b' + re.escape(candidate.lower()) + r'\b', lowered):
+                additions.append(product['name'])
+                break
+
+    if additions:
+        return f"{text} {' '.join(additions)}"
+    return text
+
+
+def search(question, n_results=None, where=None):
+    """Return a list of {document, metadata, distance}, nearest first."""
+    n_results = n_results or DEFAULT_RESULTS
+    collection = get_collection()
+
+    expanded = expand_query(question)
+
+    try:
+        raw = collection.query(
+            query_texts=[expanded],
+            n_results=n_results,
+            where=where,
+        )
+    except Exception as exc:
+        logger.error('KB search failed: %s', exc)
+        return []
+
+    documents = (raw.get('documents') or [[]])[0]
+    metadatas = (raw.get('metadatas') or [[]])[0]
+    distances = (raw.get('distances') or [[]])[0]
+
+    results = [
+        {'document': d, 'metadata': m, 'distance': dist}
+        for d, m, dist in zip(documents, metadatas, distances)
+    ]
+
+    if results:
+        logger.info(
+            'KB search: %d hits — %s',
+            len(results),
+            ', '.join(
+                f"{h['metadata'].get('article_code')}/"
+                f"{h['metadata'].get('section')} {h['distance']:.3f}"
+                for h in results
+            ),
+        )
+    else:
+        logger.info('KB search: no hits')
+
+    return results
+
+
+def is_grounded(results):
+    """True when the best match is close enough to answer from."""
+    return bool(results) and results[0]['distance'] <= GROUNDING_THRESHOLD
+
+CITATION_MARGIN = config('KB_CITATION_MARGIN', default=0.12, cast=float)
+
+
+def filter_results(results):
+    """
+    Narrow a result set to the hits that genuinely belong to the best match.
+
+    Two caps, both needed:
+      - absolute: never keep a hit the grounding rule would have rejected
+      - relative: never keep a hit much worse than the best one, because a
+        query's best distance varies hugely with phrasing length
+
+    Used for both prompt context and citation chips, so the articles we cite
+    are the articles the answer was actually built from.
+    """
+    if not results:
+        return []
+
+    best = results[0]['distance']
+    cutoff = min(GROUNDING_THRESHOLD, best + CITATION_MARGIN)
+    kept = [r for r in results if r['distance'] <= cutoff]
+
+    logger.info(
+        'KB filter: kept %d of %d (best %.3f, cutoff %.3f) — %s',
+        len(kept), len(results), best, cutoff,
+        ', '.join(r['metadata'].get('article_code') for r in kept),
+    )
+
+    return kept
+
+MAX_ARTICLES = config('KB_MAX_ARTICLES', default=2, cast=int)
+
+
+def top_articles(results):
+    """
+    Group filtered hits by article and rank each article by its best chunk.
+
+    filter_results() has already applied the distance margin, so this only
+    groups and caps. It adds no new threshold. The caller sends the FULL
+    text of these articles to the model, so a procedure is never answered
+    from fragments.
+
+    Logs codes and distances only, never content. Always logs.
+    """
+    best = {}
+    for r in results:
+        code = r['metadata'].get('article_code')
+        if code and (code not in best or r['distance'] < best[code]):
+            best[code] = r['distance']
+
+    ranked = sorted(best.items(), key=lambda kv: kv[1])
+    kept = [code for code, _ in ranked[:MAX_ARTICLES]]
+
+    logger.info(
+        'KB articles: kept %d of %d (max %d) — %s',
+        len(kept), len(ranked), MAX_ARTICLES,
+        ', '.join(f'{c} {d:.3f}' for c, d in ranked) or 'none',
+    )
+    return kept
+
+===== FILE: chatbot\services\product_registry.py =====
+
+"""
+Product registry.
+
+Products now live in the KBProduct table (editable in Django admin).
+The built-in list below is only a fallback for when the table is empty
+or not migrated yet.
+
+Used by:
+  - knowledgebase.models.product_choices()  -> admin dropdown
+  - knowledgebase.models._generate_code()   -> article code prefix
+  - kb_index.build_header()                 -> embedded context header
+  - kb_index.expand_query()                 -> alias expansion at search time
+"""
+from collections.abc import Mapping
+
+_DEFAULT_REGISTRY = {
+    'eCAC': {
+        'name': 'Enterprise Computer-Assisted Coding',
+        'aliases': ['ecac', 'Enterprise CAC', 'eCAC'],
+    },
+    'pCAC': {
+        'name': 'Professional Computer-Assisted Coding',
+        'aliases': ['PCAC', 'Professional CAC', 'pCAC'],
+    },
+    'OMA': {
+        'name': 'Optum Market Advantage',
+        'aliases': ['OMA', 'Market Advantage'],
+    },
+    'SPC': {
+        'name': 'Surgical Profitability Compass',
+        'aliases': ['SPC', 'Surgical Compass'],
+    },
+    'OPA': {
+        'name': 'Performance Analytics Provider',
+        'aliases': ['OPA', 'Performance Analytics', 'Optum Performance Analytics'],
+    },
+    'OCC': {
+        'name': 'Optum Charge Capture',
+        'aliases': ['OCC', 'Charge Capture'],
+    },
+    'CCC': {
+        'name': 'Crimson Continuum of Care',
+        'aliases': ['CCC', 'Crimson', 'Continuum of Care'],
+    },
+}
+
+UNKNOWN_PRODUCT = {'name': '', 'aliases': []}
+
+
+def get_registry():
+    """Return {code: {'name': ..., 'aliases': [...]}} from the database."""
+    try:
+        from knowledgebase.models import KBProduct
+
+        rows = list(KBProduct.objects.all())
+    except Exception:
+        rows = []
+
+    if not rows:
+        return dict(_DEFAULT_REGISTRY)
+
+    return {
+        row.code: {'name': row.name, 'aliases': row.alias_list}
+        for row in rows
+    }
+
+
+class _LiveRegistry(Mapping):
+    """Dict-like view of the registry that always reflects the database."""
+
+    def __getitem__(self, key):
+        return get_registry()[key]
+
+    def __iter__(self):
+        return iter(get_registry())
+
+    def __len__(self):
+        return len(get_registry())
+
+    def items(self):
+        return get_registry().items()
+
+    def get(self, key, default=None):
+        return get_registry().get(key, default)
+
+
+PRODUCT_REGISTRY = _LiveRegistry()
+
+
+def canonical_code(code):
+    """Return the registry's spelling of a product code, or '' if unknown."""
+    key = (code or '').strip().upper()
+    for existing in get_registry():
+        if existing.upper() == key:
+            return existing
+    return ''
+
+
+def get_product(code):
+    """Return the registry entry for a code, or a blank entry if unknown."""
+    key = (code or '').strip().upper()
+    for existing, data in get_registry().items():
+        if existing.upper() == key:
+            return data
+    return UNKNOWN_PRODUCT
+
+===== FILE: chatbot\services\phi_guard.py =====
+
+"""
+PHI detection guardrail.
+
+Reference: the 18 HIPAA identifiers under the Safe Harbor de-identification
+standard. Regex reliably detects the structured ones. It CANNOT detect
+unstructured PHI (bare names, clinical narrative, rare conditions), so this
+is a guardrail, not a guarantee. The primary control is structural: PHI
+belongs in the dedicated PHI Information field, which is never sent to an LLM.
+"""
+
+import re
+
+# ----------------------------------------------------------------------
+# Patterns
+# ----------------------------------------------------------------------
+# Each entry: (label, compiled regex, tier)
+#   'high'   — structured identifiers, very low false-positive rate
+#   'medium' — useful but noisier; still blocked, listed separately so the
+#              agent understands what triggered it
+
+PATTERNS = [
+    # 1-2. Names (only when explicitly labelled — bare capitalised words
+    #      produce far too many false positives to be useful)
+    ('Patient or member name', re.compile(
+        r'\b(?:patient|member|subscriber|beneficiary|mr|mrs|ms|dr)\.?\s+'
+        r'[A-Z][a-z]{1,20}(?:\s+[A-Z][a-z]{1,20})?\b'
+    ), 'medium'),
+
+    # 3. Geographic subdivisions
+    ('Street address', re.compile(
+        r'\b\d{1,5}\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?\s+'
+        r'(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|'
+        r'Ln|Lane|Way|Ct|Court|Pl|Place)\b\.?'
+    ), 'high'),
+
+    ('ZIP code', re.compile(
+        r'\b(?:zip|postal)\s*(?:code)?\s*[:#]?\s*\d{5}(?:-\d{4})?\b',
+        re.IGNORECASE
+    ), 'high'),
+
+    # 4. Dates related to an individual
+    ('Date of birth', re.compile(
+        r'\b(?:DOB|D\.O\.B\.|date\s+of\s+birth|birth\s*date|born\s+on)\b'
+        r'\s*[:#]?\s*\S+', re.IGNORECASE
+    ), 'high'),
+
+    ('Calendar date', re.compile(
+        r'\b(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)?\d{2}\b'
+    ), 'medium'),
+
+    # 5-6. Phone and fax
+    ('Phone or fax number', re.compile(
+        r'\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
+    ), 'high'),
+
+    # 7. Email
+    ('Email address', re.compile(
+        r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+    ), 'high'),
+
+    # 8. Social Security number
+    ('Social Security number', re.compile(
+        r'\b(?:SSN|social\s+security)\b\s*[:#]?\s*\d{3}-?\d{2}-?\d{4}\b',
+        re.IGNORECASE
+    ), 'high'),
+
+    ('Social Security number', re.compile(
+        r'\b\d{3}-\d{2}-\d{4}\b'
+    ), 'high'),
+
+    # 9. Medical record number
+    ('Medical record number', re.compile(
+        r'\b(?:MRN|M\.R\.N\.|medical\s+record(?:\s+(?:number|no|#))?|'
+        r'patient\s+(?:id|number))\b\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{3,14}\b',
+        re.IGNORECASE
+    ), 'high'),
+
+    # 10. Health plan beneficiary number
+    ('Health plan or member ID', re.compile(
+        r'\b(?:member\s*(?:id|number|#)|subscriber\s*(?:id|number|#)|'
+        r'policy\s*(?:number|no|#)|group\s*(?:number|no|#)|'
+        r'health\s*plan\s*id)\b\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{4,19}\b',
+        re.IGNORECASE
+    ), 'high'),
+
+    # 11. Account numbers
+    ('Account number', re.compile(
+        r'\b(?:account|acct)\s*(?:number|no|#)?\s*[:#]\s*[A-Z0-9][A-Z0-9-]{3,19}\b',
+        re.IGNORECASE
+    ), 'high'),
+
+    ('Claim number', re.compile(
+        r'\b(?:claim)\s*(?:number|no|#|id)?\s*[:#]\s*[A-Z0-9][A-Z0-9-]{4,19}\b',
+        re.IGNORECASE
+    ), 'high'),
+
+    # 12. Certificate or licence numbers
+    ('Certificate or licence number', re.compile(
+        r'\b(?:licen[sc]e|certificate|NPI)\s*(?:number|no|#)?\s*[:#]?\s*'
+        r'(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19}\b', re.IGNORECASE
+
+    ), 'high'),
+
+    # 13. Vehicle identifiers
+    ('Vehicle identification number', re.compile(
+        r'\b[A-HJ-NPR-Z0-9]{17}\b'
+    ), 'medium'),
+
+    # 14. Device identifiers and serial numbers
+    ('Device serial number', re.compile(
+        r'\b(?:serial|device)\s*(?:number|no|#|id)?\s*[:#]\s*[A-Z0-9][A-Z0-9-]{4,19}\b',
+        re.IGNORECASE
+    ), 'medium'),
+
+    # 16. IP address
+    ('IP address', re.compile(
+        r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+    ), 'medium'),
+]
+
+# Identifiers 15 (URLs), 17 (biometrics) and 18 (full-face photos) are not
+# usefully detectable in free text. Photos are handled by keeping attachments
+# out of every LLM call.
+
+
+def scan(text):
+    """Return a sorted list of PHI labels found in the text."""
+    if not text:
+        return []
+
+    found = []
+    for label, pattern, _tier in PATTERNS:
+        if pattern.search(text) and label not in found:
+            found.append(label)
+
+    return sorted(found)
+
+
+def contains_phi(text):
+    return bool(scan(text))
+
+
+def describe(labels):
+    """Human-readable summary for error messages."""
+    if not labels:
+        return ''
+    if len(labels) == 1:
+        return labels[0]
+    return ', '.join(labels[:-1]) + ' and ' + labels[-1]
+
+===== FILE: chatbot\services\ai_service.py =====
+
+"""
+AI assistant service layer.
+
+MVP: keyword-matched mock responses so the full UX can be built
+and demoed without a live LLM.
+
+TODO(uais): implement `_uais_response()` once integration details are
+confirmed with the platform team:
+  - Interface: internal package / REST endpoint / Python client?
+  - Auth: API key, Azure AD token, or managed identity? (goes in .env)
+  - Response format: structured JSON, or free text needing parsing?
+  - Reachable from local dev, or Azure-only?
+Nothing outside this file should need to change when it is swapped in.
+"""
+
+import json
+import logging
+import re
+
+from decouple import config
+
+from . import phi_guard, uais_client
+from . import kb_index
+
+logger = logging.getLogger(__name__)
+
+SALESFORCE_CASE_BASE_URL = config(
+    'SALESFORCE_CASE_BASE_URL',
+    default='https://example.lightning.force.com/lightning/r/Case'
+)
+UAIS_ENABLED = config('UAIS_ENABLED', default=False, cast=bool)
+
+MAX_MESSAGE_LENGTH = 2000
+
+STRICT_GROUNDING = config('KB_STRICT_GROUNDING', default=False, cast=bool)
+
+SUMMARY_PREFIX = 'Summary of the earlier part of this conversation (context only): '
+SEARCH_PREVIOUS_QUESTIONS = 3   # earlier questions added to the KB search text
+
+class AIResponse:
+    """Uniform response shape, whether mock or live."""
+
+    def __init__(self, reply, suggested_category='', suggested_priority='',
+                 suggested_request_type='', related_articles=None,
+                 similar_cases=None, engine='mock'):
+        self.reply = reply
+        self.suggested_category = suggested_category
+        self.suggested_priority = suggested_priority
+        self.suggested_request_type = suggested_request_type
+        self.related_articles = related_articles or []
+        self.similar_cases = similar_cases or []
+        self.engine = engine
+        self.product = ''   # product scope used for this answer; saved on the thread
+
+    def to_dict(self):
+        return {
+            'reply': self.reply,
+            'suggested_category': self.suggested_category,
+            'suggested_priority': self.suggested_priority,
+            'suggested_request_type': self.suggested_request_type,
+            'related_articles': self.related_articles,
+            'similar_cases': self.similar_cases,
+        }
+
+
+class PHIBlocked(Exception):
+    """Raised when a PHI guardrail prevents an LLM call."""
+
+    def __init__(self, labels):
+        self.labels = labels
+        super().__init__('PHI detected')
+
+
+def get_ai_response(message, user=None, history=None, active_product=''):
+    """Entry point used by views. Returns an AIResponse."""
+    message = (message or '').strip()[:MAX_MESSAGE_LENGTH]
+
+    if not message:
+        return AIResponse(reply="Please type a question and I'll help.")
+
+    labels = phi_guard.scan(message)
+    if labels:
+        raise PHIBlocked(labels)
+
+    history = _safe_history(history)
+
+    if UAIS_ENABLED:
+        result = _uais_response(
+            message, user, history=history, active_product=active_product
+        )
+        scope = _scope_products(message, history, active_product)
+        joined = ','.join(scope)
+        # active_product is a 20-character field; keep one whole code if it won't fit.
+        result.product = joined if len(joined) <= 20 else (scope[0] if scope else '')
+        return result
+    return _mock_response(message)
+
+
+def _safe_history(history):
+    """Second PHI check on earlier turns before they leave the app.
+
+    Turns flagged by the PHI guard are dropped, not sent. Only the count
+    is logged, never the content.
+    """
+    safe = []
+    dropped = 0
+    for turn in history or []:
+        role = turn.get('role')
+        content = (turn.get('content') or '').strip()
+        if role not in ('user', 'assistant') or not content:
+            continue
+        if phi_guard.scan(content):
+            dropped += 1
+            continue
+        safe.append({'role': role, 'content': content})
+
+    if dropped:
+        logger.warning(
+            'Chat history: dropped %d turn(s) flagged by the PHI guard', dropped
+        )
+    return safe
+
+
+# ----------------------------------------------------------------------
+# Mock engine
+# ----------------------------------------------------------------------
+GUIDANCE = {
+    'what information': (
+        "Before creating a case, collect:\n"
+        "1. Account and contact details\n"
+        "2. A clear one-line summary of the issue\n"
+        "3. When it started and how many users are affected\n"
+        "4. Exact error messages or screenshots\n"
+        "5. Steps already attempted\n"
+        "6. Whether PHI is involved"
+    ),
+    'classify': (
+        "To classify an issue:\n"
+        "1. Identify the product the user is working in\n"
+        "2. Decide whether it is access, data, or functionality\n"
+        "3. Set priority by impact: a single user is usually Medium, "
+        "multiple users or a whole site is High, and anything with a "
+        "security, privacy or patient-safety impact is Critical"
+    ),
+    'escalat': (
+        "Escalate when:\n"
+        "1. The documented troubleshooting steps are exhausted\n"
+        "2. Multiple users or a whole site is affected\n"
+        "3. There is a security, privacy, or patient-safety concern\n"
+        "4. The issue exceeds the Tier-1 resolution window\n"
+        "Include what you have already tried in the escalation notes."
+    ),
+}
+
+
+def _mock_response(message):
+    """Fallback when UAIS is disabled.
+
+    Uses the same retrieval the live path uses, but returns the matching
+    passage raw instead of having a model rewrite it. No hardcoded
+    knowledge - the database is the only source.
+    """
+    lowered = message.lower()
+
+    for phrase, text in GUIDANCE.items():
+        if phrase in lowered:
+            return AIResponse(reply=text)
+
+    results = kb_index.search(message)
+
+    if kb_index.is_grounded(results):
+        top = results[0]
+        related_articles, similar_cases = _chips_from_results(results)
+        return AIResponse(
+            reply=f"[Retrieval only - no model connected]\n\n{top['document']}",
+            related_articles=related_articles,
+            similar_cases=similar_cases,
+        )
+
+    return AIResponse(
+        reply=(
+            "I don't have anything in the knowledge base that covers this. "
+            "Try rephrasing, or describe the product and the symptom."
+        )
+    )
+
+
+# ----------------------------------------------------------------------
+# UAIS engine
+# ----------------------------------------------------------------------
+
+VALID_CATEGORIES = [
+    'User Management', 'Patient Portal', 'Claims', 'Enrollment',
+    'Provider Access', 'Technical Issues', 'Account Management', 'Security',
+]
+
+VALID_PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
+
+VALID_REQUEST_TYPES = [
+    'Technical Issue', 'Access Request', 'Claims Inquiry',
+    'Enrollment Request', 'Provider Support', 'Security Inquiry',
+]
+
+UNGROUNDED_PREFIX = (
+    "Note: this is general guidance, not from our knowledge base.\n\n"
+)
+
+NOT_FOUND_REPLY = (
+    "I don't have anything in the knowledge base that covers this. "
+    "Try rephrasing, or check with Tier 2 if it's urgent."
+)
+
+_SHARED_RULES = """Rules:
+- Never include patient identifiers in your reply.
+- Earlier messages in this conversation are context only. Use them to \
+understand what the agent is referring to, but never treat an earlier reply \
+as a source of facts, steps, values or URLs.
+- Choose suggested_category, suggested_priority and suggested_request_type \
+ONLY from the allowed values below. If none fit, use an empty string.
+
+Allowed suggested_category: {categories}
+Allowed suggested_priority: {priorities}
+Allowed suggested_request_type: {request_types}
+
+Priority guidance: a single affected user is usually Medium, multiple users \
+or a whole site is High, and anything with a security, privacy or \
+patient-safety impact is Critical.
+
+Respond with exactly this json shape:
+{{
+  "reply": "your guidance as plain text, using short lines or numbered steps",
+  "suggested_category": "",
+  "suggested_priority": "",
+  "suggested_request_type": ""
+}}"""
+
+GROUNDED_PROMPT = """You are a Tier-1 support assistant for a healthcare \
+technology company.
+
+Answer the agent's question using ONLY the knowledge base extracts below.
+
+Grounding rules:
+- Base your answer only on the extracts. Do not add steps, tools, system \
+names, URLs or procedures that do not appear in them.
+- If an extract is a step-by-step procedure, list ALL of its steps in \
+order. Do not skip, merge or shorten steps, even if the question seems to \
+need only part of the procedure.
+- Copy exact values from the extracts word for word: numbers and limits, \
+URLs, email addresses, email subjects, field names, field values, role \
+names and team names. You may shorten the sentence around a value, but \
+never replace a value with a vague phrase such as "the correct URL" or \
+"near the limit".
+- Prefer the exact wording of the extracts over your own phrasing when \
+describing a procedure.
+- If the extracts only partly answer the question, answer only the part \
+they cover, then say plainly which part is not covered in the knowledge \
+base. Do NOT complete the missing part from general knowledge, and do not \
+guess.
+
+KNOWLEDGE BASE EXTRACTS
+=======================
+{context}
+=======================
+
+""" + _SHARED_RULES
+
+UNGROUNDED_PROMPT = """You are a Tier-1 support assistant for a healthcare \
+technology company.
+
+Nothing in the knowledge base matched this question, so answer from general \
+support knowledge.
+
+- Do NOT invent company-specific details: internal tool names, URLs, system \
+names, team names, ticket numbers, or procedures you have not been told about.
+- Keep the guidance general and say plainly where the agent would need to \
+check local documentation.
+
+""" + _SHARED_RULES
+
+
+def _build_system_prompt(context=None):
+    template = GROUNDED_PROMPT if context else UNGROUNDED_PROMPT
+    return template.format(
+        context=context or '',
+        categories=' | '.join(VALID_CATEGORIES),
+        priorities=' | '.join(VALID_PRIORITIES),
+        request_types=' | '.join(VALID_REQUEST_TYPES),
+    )
+
+
+def _pick(value, allowed):
+    """Return the value only if it matches an allowed option, else ''."""
+    if not value:
+        return ''
+    value = str(value).strip()
+    for option in allowed:
+        if value.lower() == option.lower():
+            return option
+    return ''
+
+
+def _build_context(results):
+    """Join retrieved chunks into the prompt context block.
+
+    Each chunk already carries its own header (product, article, section),
+    so the model can see where every passage came from.
+    """
+    return '\n\n---\n\n'.join(hit['document'] for hit in results)
+
+
+def _build_article_context(codes):
+    """Full text of the selected articles, in ranking order.
+
+    Chunks are used to FIND the article; the whole article is used to
+    ANSWER, so multi-step procedures reach the model complete.
+    """
+    from knowledgebase.models import KnowledgeArticle
+
+    articles = {
+        a.code: a for a in KnowledgeArticle.objects.filter(code__in=codes)
+    }
+    blocks = []
+    for code in codes:
+        a = articles.get(code)
+        if a:
+            blocks.append(
+                f'Article: {a.code} - {a.title}\n'
+                f'Category: {a.get_category_display()}\n\n'
+                f'{a.content}'
+            )
+    return '\n\n---\n\n'.join(blocks)
+
+
+def _chips_from_results(results):
+    """Derive article and case chips from what retrieval actually returned.
+
+    Article codes come from chunk metadata; tickets are read from the
+    article itself, so ticket links can change without re-indexing.
+    """
+    codes = list(dict.fromkeys(
+        hit['metadata'].get('article_code')
+        for hit in results
+        if hit['metadata'].get('article_code')
+    ))
+    if not codes:
+        return [], []
+
+    from knowledgebase.models import KnowledgeArticle
+
+    articles = {
+        a.code: a
+        for a in KnowledgeArticle.objects.filter(
+            code__in=codes
+        ).prefetch_related('tickets')
+    }
+
+    related_articles = [code for code in codes if code in articles]
+
+    similar_cases = []
+    seen = set()
+    for code in related_articles:
+        for ticket in articles[code].tickets.all():
+            if ticket.number not in seen:
+                seen.add(ticket.number)
+                similar_cases.append({
+                    'number': ticket.number,
+                    'url': ticket.url,
+                    'label': ticket.label,
+                })
+
+    return related_articles, similar_cases
+
+
+def _products_named(text):
+    """Product codes mentioned in the text, by code or alias (for example OPA)."""
+    from .product_registry import get_registry
+
+    lowered = (text or '').lower()
+    found = []
+    for code, data in get_registry().items():
+        for term in [code] + list(data['aliases']):
+            if re.search(r'\b' + re.escape(term.lower()) + r'\b', lowered):
+                found.append(code)
+                break
+    return found
+
+
+def _scope_products(message, history, active_product=''):
+    """Product named in this question, else the one saved on the thread,
+    else the latest one named in the recent history."""
+    named = _products_named(message)
+    if named:
+        return named
+    saved = [p for p in (active_product or '').split(',') if p]
+    if saved:
+        return saved
+    # Threads started before active_product existed.
+    for turn in reversed(history or []):
+        if turn['role'] == 'user' and not turn['content'].startswith(SUMMARY_PREFIX):
+            named = _products_named(turn['content'])
+            if named:
+                return named
+    return []
+
+
+def _retrieval_filter(products=None):
+    """Chroma filter: keep retired products and categories out, and optionally
+    restrict the search to the products named in the question."""
+    try:
+        from knowledgebase.models import KBCategory, KBProduct
+
+        inactive_products = [
+            c.upper()
+            for c in KBProduct.objects.filter(active=False).values_list('code', flat=True)
+        ]
+        inactive_categories = list(
+            KBCategory.objects.filter(active=False).values_list('key', flat=True)
+        )
+    except Exception:
+        return None
+
+    clauses = []
+    if products:
+        clauses.append({'product_code': {'$in': [p.upper() for p in products]}})
+    if inactive_products:
+        clauses.append({'product_code': {'$nin': inactive_products}})
+    if inactive_categories:
+        clauses.append({'category': {'$nin': inactive_categories}})
+
+    if not clauses:
+        return None
+    return clauses[0] if len(clauses) == 1 else {'$and': clauses}
+
+
+def _ask_product_reply():
+    """Fixed reply when no product is named. The list comes from the KBProduct table."""
+    try:
+        from knowledgebase.models import KBProduct
+        codes = list(
+            KBProduct.objects.filter(active=True)
+            .order_by('code')
+            .values_list('code', flat=True)
+        )
+    except Exception:
+        codes = []
+
+    if len(codes) > 1:
+        listing = ', '.join(codes[:-1]) + ' or ' + codes[-1]
+    else:
+        listing = codes[0] if codes else ''
+
+    reply = 'Which product is this for?'
+    if listing:
+        reply += f' ({listing})'
+    return reply + ' Please mention the product so I can give you the right steps.'
+
+# Words that only steer the conversation ("next", "okay, step by step").
+# A message made up only of these has no topic of its own.
+_NAV_WORDS = {
+    'ok', 'okay', 'next', 'go', 'continue', 'proceed', 'yes', 'yeah', 'yep',
+    'sure', 'done', 'thanks', 'thank', 'you', 'please', 'lets', "let's", 'let',
+    'step', 'by', 'then', 'now', 'what', 'ahead', 'alright', 'confirmed',
+    'approved', 'completed', 'finished', 'got', 'it', 'and', 'the', 'me',
+    'show', 'give', 'move', 'on', 'to',
+    'steps', 'two', 'three', 'more', 'remaining', 'rest', 'last', 'final',
+    'all', 'again', 'repeat', 'previous', 'back', 'is',
+}
+
+
+def _words(text):
+    t = (text or '').lower().replace('\u2019', "'")
+    return re.findall(r"[a-z0-9']+", t)
+
+
+def _is_navigation(text):
+    """True for 'next', 'okay next', 'what next', "okay, let's go step by step"."""
+    words = _words(text)
+    return bool(words) and all(w in _NAV_WORDS or w.isdigit() for w in words)
+
+
+def _is_product_only(text):
+    """True for a bare product answer such as 'OMA' to 'Which product?'."""
+    rest = [w for w in _words(text) if w not in _NAV_WORDS]
+    return len(rest) <= 1 and bool(_products_named(text))
+
+def _kb_search(message, previous, summary, scope):
+    """Search the KB. Returns (results, note).
+
+    Two vector searches run (local, no LLM tokens) and the one whose best
+    hit is closest wins:
+      - the question alone plus the product code, so a self-contained
+        question is not diluted by earlier topics
+      - the question plus earlier questions, so a vague follow-up keeps
+        its topic
+    A navigation message such as "next" has no topic of its own, so it is
+    searched with the earlier questions and the rolling summary only.
+    """
+    where = _retrieval_filter(scope)
+    hint = '' if _products_named(message) else ' '.join(scope)
+    with_hint = f'{message} {hint}'.strip()
+
+    candidates = []
+    if _is_navigation(message):
+        text = '\n'.join(previous + ([summary] if summary else []))
+        candidates.append(('navigation + context', f'{text} {hint}'.strip() or message))
+    else:
+        candidates.append(('question alone', with_hint))
+        if previous:
+            candidates.append((
+                f'question + {len(previous)} earlier',
+                '\n'.join(previous + [with_hint]),
+            ))
+
+    best = None
+    for label, text in candidates:
+        found = kb_index.search(text, where=where)
+        distance = found[0]['distance'] if found else None
+        logger.info(
+            'KB query [%s]: best distance %s',
+            label, 'none' if distance is None else f'{distance:.3f}',
+        )
+        if found and (best is None or distance < best[1]):
+            best = (found, distance, label)
+
+    if best is None:
+        return [], 'no results'
+    return best[0], best[2]
+
+def _uais_response(message, user=None, history=None, active_product=''):
+    """Live response from UAIS, grounded in retrieved knowledge base chunks."""
+    history = history or []
+
+    scope = _scope_products(message, history, active_product)
+    if not scope:
+        logger.info('No product named in question or history; asking the user')
+        return AIResponse(reply=_ask_product_reply(), engine='uais')
+    logger.info('KB scope: product filter %s', ', '.join(scope))
+
+    previous = [
+        t['content'] for t in history
+        if t['role'] == 'user'
+        and not t['content'].startswith(SUMMARY_PREFIX)
+        and not _is_navigation(t['content'])
+        and not _is_product_only(t['content'])
+    ][-SEARCH_PREVIOUS_QUESTIONS:]
+    summary = next(
+        (t['content'][len(SUMMARY_PREFIX):] for t in history
+         if t['role'] == 'user' and t['content'].startswith(SUMMARY_PREFIX)),
+        '',
+    )
+
+    results, query_note = _kb_search(message, previous, summary, scope)
+    logger.info('KB query used: %s', query_note)
+    grounded = kb_index.is_grounded(results)
+    
+
+    context = None
+    if grounded:
+        # Chunks find the article; the full article answers.
+        results = kb_index.filter_results(results)
+        codes = kb_index.top_articles(results)
+
+        # Chips must describe exactly the articles in the prompt.
+        results = [
+            r for r in results
+            if r['metadata'].get('article_code') in codes
+        ]
+
+        context = _build_article_context(codes) or _build_context(results)
+    else:
+        results = []
+        if STRICT_GROUNDING:
+            logger.info('No grounded match; strict mode, skipping the model')
+            return AIResponse(reply=NOT_FOUND_REPLY, engine='uais')
+
+    try:
+        raw = uais_client.call_llm(
+            prompt=message,
+            system=_build_system_prompt(context=context),
+            json_mode=True,
+            history=history,
+        )
+    except uais_client.UAISError as exc:
+        logger.error('UAIS unavailable: %s', exc)
+        return AIResponse(
+            reply=(
+                'The assistant is temporarily unavailable. Please try again '
+                'in a moment, or continue without it.'
+            ),
+            engine='uais',
+        )
+
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning('UAIS returned content that was not valid JSON')
+        return AIResponse(reply=raw.strip(), engine='uais')
+
+    reply = (data.get('reply') or '').strip()
+    if reply and not grounded:
+        reply = UNGROUNDED_PREFIX + reply
+
+    related_articles, similar_cases = _chips_from_results(results)
+
+    return AIResponse(
+        reply=reply,
+        suggested_category=_pick(data.get('suggested_category'), VALID_CATEGORIES),
+        suggested_priority=_pick(data.get('suggested_priority'), VALID_PRIORITIES),
+        suggested_request_type=_pick(
+            data.get('suggested_request_type'), VALID_REQUEST_TYPES
+        ),
+        related_articles=related_articles,
+        similar_cases=similar_cases,
+        engine='uais',
+    )
+
+
+# ----------------------------------------------------------------------
+# Rephrase
+# ----------------------------------------------------------------------
+
+MAX_REPHRASE_LENGTH = 4000
+
+# TODO(uais): PHI SAFETY - before enabling live rephrasing, confirm that
+# case descriptions may be sent to the model at all. Descriptions can
+# contain PHI. Required decisions:
+#   - Is the UAIS endpoint covered by a BAA / approved for PHI?
+#   - If not, block rephrase when includes_phi is Yes, or redact first.
+#   - Confirm retention: is the submitted text logged by the provider?
+# Do not enable UAIS_ENABLED for rephrase until this is answered.
+
+
+class RephraseResult:
+    def __init__(self, success, text='', note='', error='', engine='mock'):
+        self.success = success
+        self.text = text
+        self.note = note
+        self.error = error
+        self.engine = engine
+        self.product = ''   # product scope used for this answer; saved on the thread
+
+    def to_dict(self):
+        return {
+            'success': self.success,
+            'text': self.text,
+            'note': self.note,
+            'error': self.error,
+        }
+
+
+def rephrase_text(text, user=None):
+    """Improve the wording of a case description. Returns a RephraseResult."""
+    text = (text or '').strip()
+
+    if len(text) < 20:
+        return RephraseResult(
+            success=False,
+            error='Please write a little more before rephrasing.',
+        )
+
+    text = text[:MAX_REPHRASE_LENGTH]
+
+    labels = phi_guard.scan(text)
+    if labels:
+        raise PHIBlocked(labels)
+
+    if UAIS_ENABLED:
+        return _rephrase_uais(text, user)
+    return _rephrase_mock(text)
+
+
+def _rephrase_mock(text):
+    """Light, honest cleanup: spacing, capitalisation, punctuation."""
+    cleaned = re.sub(r'[ \t]+', ' ', text)
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = re.sub(r'\s+([,.;:!?])', r'\1', cleaned)
+    cleaned = re.sub(r'([,.;:!?])(?=[^\s\d])', r'\1 ', cleaned)
+
+    lines = []
+    for line in cleaned.split('\n'):
+        line = line.strip()
+        if not line:
+            lines.append('')
+            continue
+
+        parts = re.split(r'(?<=[.!?])\s+', line)
+        parts = [p[0].upper() + p[1:] if p else p for p in parts]
+        line = ' '.join(parts)
+
+        if line and line[-1] not in '.!?:':
+            line += '.'
+        lines.append(line)
+
+    cleaned = '\n'.join(lines).strip()
+
+    return RephraseResult(
+        success=True,
+        text=cleaned,
+        note='Basic formatting cleanup. Full rephrasing activates once the '
+             'AI service is connected.',
+    )
+
+
+def _rephrase_uais(text, user=None):
+    """Not implemented yet. Falls back to the mock cleanup so the Rephrase
+    button keeps working while UAIS is enabled for chat."""
+    logger.info('UAIS rephrase not implemented; using mock cleanup')
+    return _rephrase_mock(text)
+
+===== FILE: chatbot\services\uais_client.py =====
+
+"""
+UAIS transport layer.
+
+Authentication, token caching, and the HTTP call to the model. Knows
+nothing about support cases, prompts or classification — those live in
+ai_service.py.
+
+PHI SAFETY: this module must never log prompt or response content.
+Log status, latency and token counts only.
+"""
+
+import logging
+import threading
+import time
+
+import httpx
+import openai
+from decouple import config
+
+logger = logging.getLogger(__name__)
+
+# --- authentication ---
+AUTH_URL = config('UAIS_AUTH_URL', default='')
+SCOPE = config('UAIS_SCOPE', default='')
+GRANT_TYPE = config('UAIS_GRANT_TYPE', default='client_credentials')
+CLIENT_ID = config('UAIS_CLIENT_ID', default='')
+CLIENT_SECRET = config('UAIS_CLIENT_SECRET', default='')
+
+# --- model ---
+ENDPOINT = config('UAIS_ENDPOINT', default='')
+API_VERSION = config('UAIS_API_VERSION', default='')
+DEPLOYMENT = config('UAIS_DEPLOYMENT', default='')
+PROJECT_ID = config('UAIS_PROJECT_ID', default='')
+TIMEOUT = config('UAIS_TIMEOUT', default=30, cast=int)
+UAIS_TEMPERATURE = config('UAIS_TEMPERATURE', default=0.2, cast=float)
+
+TOKEN_SAFETY_MARGIN = 60          # refresh this many seconds before expiry
+
+
+class UAISError(Exception):
+    """Transport-level failure talking to UAIS."""
+
+
+# ----------------------------------------------------------------------
+# Token caching
+# ----------------------------------------------------------------------
+
+_token_lock = threading.Lock()
+_token_value = None
+_token_expires_at = 0.0
+
+
+def _fetch_token():
+    """One OAuth client-credentials round trip. Returns (token, expires_in)."""
+    body = {
+        'grant_type': GRANT_TYPE,
+        'scope': SCOPE,
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+    }
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+    try:
+        with httpx.Client(timeout=TIMEOUT) as client:
+            response = client.post(AUTH_URL, headers=headers, data=body)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.HTTPError as exc:
+        raise UAISError(f'Authentication request failed: {exc}') from exc
+
+    token = data.get('access_token')
+    if not token:
+        raise UAISError('Authentication response did not contain access_token')
+
+    return token, int(data.get('expires_in', 3600))
+
+
+def get_token():
+    """Return a valid access token, fetching a new one only when needed."""
+    global _token_value, _token_expires_at
+
+    if _token_value and time.time() < _token_expires_at:
+        return _token_value
+
+    with _token_lock:
+        # Re-check: another thread may have refreshed while we waited.
+        now = time.time()
+        if _token_value and now < _token_expires_at:
+            return _token_value
+
+        token, expires_in = _fetch_token()
+        _token_value = token
+        _token_expires_at = now + max(expires_in - TOKEN_SAFETY_MARGIN, 30)
+        logger.info('UAIS token refreshed, valid for %ss', expires_in)
+        return _token_value
+
+
+# ----------------------------------------------------------------------
+# Client
+# ----------------------------------------------------------------------
+
+_client = None
+_client_lock = threading.Lock()
+
+
+def _get_client():
+    """Module-level client. The token provider is called per request, so a
+    single client instance stays valid across token refreshes."""
+    global _client
+
+    if _client is not None:
+        return _client
+
+    with _client_lock:
+        if _client is None:
+            _client = openai.AzureOpenAI(
+                azure_endpoint=ENDPOINT,
+                api_version=API_VERSION,
+                azure_deployment=DEPLOYMENT,
+                azure_ad_token_provider=get_token,
+                default_headers={'projectId': PROJECT_ID},
+                timeout=TIMEOUT,
+                max_retries=2,
+            )
+    return _client
+
+
+# ----------------------------------------------------------------------
+# Public interface
+# ----------------------------------------------------------------------
+
+def call_llm(prompt, system=None, json_mode=False, temperature=None, history=None):
+    """Send a prompt to UAIS and return the raw text response.
+
+    json_mode requires the word "json" to appear somewhere in the prompt,
+    or the API rejects the request. The caller's system prompt must
+    include it.
+
+    temperature defaults to UAIS_TEMPERATURE from .env.
+
+    history is an optional list of earlier turns, oldest first, each
+    {'role': 'user' | 'assistant', 'content': '...'}. They go between the
+    system prompt and the current message. Anything else is ignored.
+    """
+    if temperature is None:
+        temperature = UAIS_TEMPERATURE
+
+    messages = []
+    if system:
+        messages.append({'role': 'system', 'content': system})
+    for turn in history or []:
+        if turn.get('role') in ('user', 'assistant') and turn.get('content'):
+            messages.append({'role': turn['role'], 'content': turn['content']})
+    messages.append({'role': 'user', 'content': prompt})
+
+    payload = {
+        'model': DEPLOYMENT,
+        'messages': messages,
+        'temperature': temperature,
+    }
+    if json_mode:
+        payload['response_format'] = {'type': 'json_object'}
+
+    client = _get_client()
+    started = time.time()
+
+    try:
+        response = client.chat.completions.create(**payload)
+    except Exception as exc:
+        # Some corporate gateways reject the temperature parameter.
+        if 'temperature' not in str(exc).lower():
+            logger.error('UAIS call failed: %s', exc)
+            raise UAISError(f'UAIS request failed: {exc}') from exc
+
+        payload.pop('temperature', None)
+        try:
+            response = client.chat.completions.create(**payload)
+        except Exception as retry_exc:
+            logger.error('UAIS call failed after temperature retry: %s', retry_exc)
+            raise UAISError(f'UAIS request failed: {retry_exc}') from retry_exc
+
+    elapsed = time.time() - started
+
+    if not response.choices:
+        raise UAISError('UAIS returned no choices')
+
+    choice = response.choices[0]
+    finish = getattr(choice, 'finish_reason', None) or '?'
+
+    usage = getattr(response, 'usage', None)
+    logger.info(
+        'UAIS ok in %.2fs, prompt_tokens=%s completion_tokens=%s '
+        'finish=%s history_turns=%d temperature=%s',
+        elapsed,
+        getattr(usage, 'prompt_tokens', '?'),
+        getattr(usage, 'completion_tokens', '?'),
+        finish,
+        sum(1 for m in messages if m['role'] == 'user') - 1,
+        payload.get('temperature', 'omitted'),
+    )
+    if finish == 'length':
+        logger.warning('UAIS reply was cut off at the output limit')
+
+    return choice.message.content or ''
+
+===== FILE: templates\chatbot\assistant.html =====
+
+{% extends 'base.html' %}
+
+{% block title %}AI Assistant · Support Accelerator AI{% endblock %}
+
+{% block content %}
+<div class="assistant-layout">
+
+    <!-- History rail -->
+    <div class="assistant-history card">
+        <div class="history-header">
+            <span>Recent conversations</span>
+            <a href="{% url 'assistant' %}" class="btn btn-sm btn-outline-primary" title="New conversation">
+                <i class="bi bi-plus-lg"></i>
+            </a>
+        </div>
+        <div class="history-list">
+            {% for item in history %}
+            <a href="{% url 'assistant' %}?c={{ item.pk }}"
+               class="history-item {% if conversation and conversation.pk == item.pk %}active{% endif %}">
+                <div class="history-item-title">{{ item.display_title }}</div>
+                <div class="history-item-date">{{ item.updated_at|date:"d M, H:i" }}</div>
+            </a>
+            {% empty %}
+            <div class="history-empty">
+                No conversations yet. Ask a question to get started.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Chat column -->
+    <div class="assistant-main card">
+
+        <div class="assistant-header">
+            <div>
+                <div class="assistant-title">
+                    <i class="bi bi-robot"></i> Support Accelerator AI
+                </div>
+                <div class="assistant-subtitle">
+                    Ask about an issue, then raise a case when you're ready.
+                </div>
+            </div>
+            <a href="{% url 'create_case' %}{% if conversation %}?conversation={{ conversation.pk }}{% endif %}"
+               class="btn btn-primary" id="createCaseBtn">
+                <i class="bi bi-plus-circle me-1"></i> Create Support Case
+            </a>
+        </div>
+
+        <div class="assistant-body" id="aiPanelBody">
+
+            {% if conversation_messages %}
+                {% for item in conversation_messages %}
+                <div class="chat-bubble chat-user">{{ item.message }}</div>
+                <div class="chat-bubble chat-ai">{{ item.response }}</div>
+
+                {% if item.related_articles %}
+                <div class="ai-articles">
+                    <div class="ai-articles-label">Related articles</div>
+                    {% for code in item.related_articles %}
+                    <a class="ai-article-chip" href="/kb/article/{{ code|urlencode }}/" target="_blank" rel="noopener noreferrer">{{ code }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if item.similar_cases %}
+                <div class="ai-articles">
+                    <div class="ai-articles-label">Similar past cases</div>
+                    {% for case in item.similar_cases %}
+                    <a class="ai-case-chip" href="{{ case.url }}" target="_blank" rel="noopener noreferrer" title="{{ case.label }}">{{ case.number }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="ai-welcome">
+                    Hi{% if user.first_name %} {{ user.first_name }}{% endif %}!
+                    I'm your AI assistant. Describe the issue and I'll help you
+                    classify it, find related articles, and raise a case.
+                </div>
+
+                <div class="ai-suggestions" id="aiSuggestions">
+                    <button type="button" class="ai-suggestion" data-prompt="What information do I need before creating a case?">
+                        <i class="bi bi-info-circle"></i>
+                        What information do I need before creating a case?
+                    </button>
+                    <button type="button" class="ai-suggestion" data-prompt="How should I classify this issue?">
+                        <i class="bi bi-tags"></i>
+                        How should I classify this issue?
+                    </button>
+                    <button type="button" class="ai-suggestion" data-prompt="Portal login issues">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Portal login issues
+                    </button>
+                    <button type="button" class="ai-suggestion" data-prompt="When should I escalate a case?">
+                        <i class="bi bi-arrow-up-circle"></i>
+                        When should I escalate a case?
+                    </button>
+                </div>
+                
+                <div id="aiTopicsBlock">
+                    <div class="ai-section-title">Popular topics</div>
+                    <ul class="ai-topics">
+                        <li data-prompt="How do I create a case?">
+                            <i class="bi bi-file-earmark-text"></i> Creating a Case
+                        </li>
+                        <li data-prompt="Portal login issues">
+                            <i class="bi bi-file-earmark-text"></i> Portal Login Issues
+                        </li>
+                        <li data-prompt="Password reset">
+                            <i class="bi bi-file-earmark-text"></i> Password Reset
+                        </li>
+                        <li data-prompt="When should I escalate a case?">
+                            <i class="bi bi-file-earmark-text"></i> Escalation Guidelines
+                        </li>
+                        <li data-prompt="PHI and security policy">
+                            <i class="bi bi-file-earmark-text"></i> Security Policy
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="phi-note">
+                    <i class="bi bi-shield-check"></i>
+                    Please do not share any patient information (PHI) in this chat.
+                </div>
+            {% endif %}
+
+        </div>
+
+        <div class="assistant-footer">
+            <div class="input-group">
+                <input type="text" class="form-control" id="aiInput"
+                       placeholder="Describe the issue..." maxlength="2000" autofocus>
+                <button class="btn btn-primary" type="button" id="aiSend">
+                    <i class="bi bi-send"></i>
+                </button>
+            </div>
+            <div class="ai-disclaimer">
+                AI responses can be inaccurate. Please verify important information.
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const askUrl = "{% url 'chatbot_ask' %}";
+    const panelBody = document.getElementById('aiPanelBody');
+    const input = document.getElementById('aiInput');
+    const sendBtn = document.getElementById('aiSend');
+    const createBtn = document.getElementById('createCaseBtn');
+    const caseUrl = "{% url 'create_case' %}";
+
+    let conversationId = {{ conversation.pk|default:"null" }};
+    let busy = false;
+
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    function addBubble(text, who) {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble chat-' + who;
+        bubble.textContent = text;
+        panelBody.appendChild(bubble);
+        panelBody.scrollTop = panelBody.scrollHeight;
+        return bubble;
+    }
+
+    function addArticleLinks(data) {
+        if (!data.related_articles || !data.related_articles.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-articles';
+
+        const label = document.createElement('div');
+        label.className = 'ai-articles-label';
+        label.textContent = 'Related articles';
+        wrap.appendChild(label);
+
+        data.related_articles.forEach(function (code) {
+            const link = document.createElement('a');
+            link.className = 'ai-article-chip';
+            link.href = '/kb/article/' + encodeURIComponent(code) + '/';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = code;
+            wrap.appendChild(link);
+        });
+
+        panelBody.appendChild(wrap);
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+
+    function addSimilarCases(data) {
+        if (!data.similar_cases || !data.similar_cases.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-articles';
+
+        const label = document.createElement('div');
+        label.className = 'ai-articles-label';
+        label.textContent = 'Similar past cases';
+        wrap.appendChild(label);
+
+        data.similar_cases.forEach(function (item) {
+            const link = document.createElement('a');
+            link.className = 'ai-case-chip';
+            link.href = item.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = item.number;
+            if (item.label) link.title = item.label;
+            wrap.appendChild(link);
+        });
+
+        panelBody.appendChild(wrap);
+        panelBody.scrollTop = panelBody.scrollHeight;
+    }
+
+    function updateCreateLink() {
+        if (createBtn && conversationId) {
+            createBtn.href = caseUrl + '?conversation=' + conversationId;
+        }
+    }
+
+    const HISTORY_LIMIT = 5;
+
+    function addHistoryItem(id, title) {
+        const list = document.querySelector('.history-list');
+        if (!list) return;
+
+        // remove the "No conversations yet" message
+        const empty = list.querySelector('.history-empty');
+        if (empty) empty.remove();
+
+        // clear the active state on the other items
+        list.querySelectorAll('.history-item.active').forEach(function (el) {
+            el.classList.remove('active');
+        });
+
+        const link = document.createElement('a');
+        link.className = 'history-item active';
+        link.href = "{% url 'assistant' %}?c=" + id;
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'history-item-title';
+        titleDiv.textContent = title.length > 40 ? title.slice(0, 40) + '…' : title;
+
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'history-item-date';
+        const now = new Date();
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        dateDiv.textContent =
+            String(now.getDate()).padStart(2, '0') + ' ' + months[now.getMonth()] + ', ' +
+            String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+        link.appendChild(titleDiv);
+        link.appendChild(dateDiv);
+        list.prepend(link);
+
+        // keep only the latest 5 in the panel
+        const items = list.querySelectorAll('.history-item');
+        for (let i = HISTORY_LIMIT; i < items.length; i++) {
+            items[i].remove();
+        }
+    }
+
+    async function send(message) {
+        if (busy) return;
+        const text = (message || input.value).trim();
+        if (!text) return;
+
+        busy = true;
+        input.value = '';
+
+        const suggestions = document.getElementById('aiSuggestions');
+        if (suggestions) {
+            panelBody.innerHTML = '';
+        }
+
+        addBubble(text, 'user');
+        const thinking = addBubble('Thinking...', 'ai');
+
+        try {
+            const response = await fetch(askUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    message: text,
+                    source: 'assistant',
+                    conversation_id: conversationId,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.conversation_id) {
+                const isNewConversation = !conversationId;
+                conversationId = data.conversation_id;
+                updateCreateLink();
+                if (isNewConversation && response.ok) {
+                    addHistoryItem(conversationId, text);
+                }
+            }
+
+            if (!response.ok) {
+                thinking.textContent = data.error || 'Something went wrong.';
+            } else {
+                thinking.textContent = data.reply;
+                addArticleLinks(data);
+                addSimilarCases(data);
+            }
+        } catch (err) {
+            thinking.textContent = 'Could not reach the assistant. Please try again.';
+        } finally {
+            busy = false;
+            input.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', () => send());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            send();
+        }
+    });
+
+    document.querySelectorAll('[data-prompt]').forEach((el) => {
+        el.addEventListener('click', () => send(el.dataset.prompt));
+    });
+
+    panelBody.scrollTop = panelBody.scrollHeight;
+    updateCreateLink();
+})();
+</script>
+{% endblock %}
